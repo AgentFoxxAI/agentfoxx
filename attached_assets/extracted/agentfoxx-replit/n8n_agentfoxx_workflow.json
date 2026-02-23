@@ -1,0 +1,315 @@
+{
+  "name": "AgentFoxx Conference Networking (Replit + Outreach)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agentfoxx",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Webhook - Receive Audio",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "agentfoxx-conference"
+    },
+    {
+      "parameters": {
+        "url": "={{$json.audioUrl}}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "http-download-audio",
+      "name": "Download Audio File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "binaryPropertyName": "data",
+        "options": {
+          "language": "en",
+          "temperature": 0
+        }
+      },
+      "id": "openai-whisper",
+      "name": "OpenAI Whisper - Transcribe",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.3,
+      "position": [650, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract key themes from transcript\nconst transcript = $input.first().json.text;\nconst contactName = $('Webhook - Receive Audio').first().json.body.contactName;\nconst contactEmail = $('Webhook - Receive Audio').first().json.body.contactEmail;\nconst company = $('Webhook - Receive Audio').first().json.body.company;\nconst notes = $('Webhook - Receive Audio').first().json.body.notes || '';\n\n// Theme detection keywords\nconst themes = {\n  'fraud_prevention': ['fraud', 'fraudulent', 'chargeback', 'dispute', 'risk', 'detection'],\n  'compliance': ['compliance', 'regulatory', 'regulation', 'audit', 'gdpr', 'sox', 'pci'],\n  'cost_optimization': ['cost', 'expense', 'budget', 'savings', 'efficiency', 'reduce'],\n  'digital_transformation': ['digital', 'transformation', 'modernize', 'cloud', 'automation'],\n  'general': []\n};\n\nlet detectedTheme = 'general';\nlet maxMatches = 0;\n\nfor (const [theme, keywords] of Object.entries(themes)) {\n  const matches = keywords.filter(kw => \n    transcript.toLowerCase().includes(kw) || notes.toLowerCase().includes(kw)\n  ).length;\n  \n  if (matches > maxMatches) {\n    maxMatches = matches;\n    detectedTheme = theme;\n  }\n}\n\n// Map theme to white paper URL (update these URLs with your actual white papers)\nconst whitePapers = {\n  'fraud_prevention': 'https://your-replit-url.replit.app/whitepapers/fraud-prevention.pdf',\n  'compliance': 'https://your-replit-url.replit.app/whitepapers/compliance-guide.pdf',\n  'cost_optimization': 'https://your-replit-url.replit.app/whitepapers/cost-optimization.pdf',\n  'digital_transformation': 'https://your-replit-url.replit.app/whitepapers/digital-transformation.pdf',\n  'general': 'https://your-replit-url.replit.app/whitepapers/company-overview.pdf'\n};\n\nconst whitePaperUrl = whitePapers[detectedTheme];\n\nreturn {\n  transcript,\n  contactName,\n  contactEmail,\n  company,\n  theme: detectedTheme,\n  whitePaperUrl,\n  activityId: $('Webhook - Receive Audio').first().json.body.activityId,\n  callbackUrl: $('Webhook - Receive Audio').first().json.body.callbackUrl\n};"
+      },
+      "id": "code-theme-extraction",
+      "name": "Extract Theme & Map White Paper",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "message",
+        "model": "gpt-4o",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a professional sales development representative writing personalized follow-up emails after conference meetings. Write natural, conversational emails that reference specific topics discussed. Keep emails under 150 words. Always include a clear call-to-action for a follow-up meeting."
+            },
+            {
+              "role": "user",
+              "content": "=Write a follow-up email to {{$json.contactName}} from {{$json.company}}. We discussed {{$json.theme.replace('_', ' ')}} at the conference. Reference the attached white paper on this topic. Transcript of our conversation: {{$json.transcript}}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "id": "openai-gpt4o",
+      "name": "GPT-4o - Draft Email",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.3,
+      "position": [1050, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "prospect",
+        "operation": "create",
+        "additionalFields": {
+          "emails": "={{$('Extract Theme & Map White Paper').first().json.contactEmail}}",
+          "firstName": "={{$('Extract Theme & Map White Paper').first().json.contactName.split(' ')[0]}}",
+          "lastName": "={{$('Extract Theme & Map White Paper').first().json.contactName.split(' ').slice(1).join(' ')}}",
+          "company": "={{$('Extract Theme & Map White Paper').first().json.company}}",
+          "tags": "={{$('Extract Theme & Map White Paper').first().json.theme}},conference"
+        }
+      },
+      "id": "outreach-create-prospect",
+      "name": "Outreach - Create Prospect",
+      "type": "n8n-nodes-base.outreach",
+      "typeVersion": 1,
+      "position": [1250, 300],
+      "credentials": {
+        "outreachOAuth2Api": {
+          "id": "YOUR_OUTREACH_CREDENTIAL_ID",
+          "name": "Outreach.io OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Map theme to Outreach sequence ID\n// You must create these sequences in Outreach.io first and replace with actual IDs\nconst sequenceMapping = {\n  'fraud_prevention': 123,  // Replace with your Fraud Prevention sequence ID\n  'compliance': 124,        // Replace with your Compliance sequence ID\n  'cost_optimization': 125, // Replace with your Cost Optimization sequence ID\n  'digital_transformation': 126, // Replace with your Digital Transformation sequence ID\n  'general': 127            // Replace with your General Follow-up sequence ID\n};\n\nconst theme = $('Extract Theme & Map White Paper').first().json.theme;\nconst prospectId = $input.first().json.data.id;\n\nreturn {\n  prospectId,\n  sequenceId: sequenceMapping[theme] || sequenceMapping['general'],\n  theme\n};"
+      },
+      "id": "code-map-sequence",
+      "name": "Map Theme to Sequence",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "resource": "sequenceState",
+        "operation": "create",
+        "prospectId": "={{$json.prospectId}}",
+        "sequenceId": "={{$json.sequenceId}}"
+      },
+      "id": "outreach-enroll-sequence",
+      "name": "Outreach - Enroll in Sequence",
+      "type": "n8n-nodes-base.outreach",
+      "typeVersion": 1,
+      "position": [1650, 300],
+      "credentials": {
+        "outreachOAuth2Api": {
+          "id": "YOUR_OUTREACH_CREDENTIAL_ID",
+          "name": "Outreach.io OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{$('Extract Theme & Map White Paper').first().json.callbackUrl}}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "theme",
+              "value": "={{$('Extract Theme & Map White Paper').first().json.theme}}"
+            },
+            {
+              "name": "transcript",
+              "value": "={{$('Extract Theme & Map White Paper').first().json.transcript}}"
+            },
+            {
+              "name": "email_draft",
+              "value": "={{$('GPT-4o - Draft Email').first().json.message.content}}"
+            },
+            {
+              "name": "outreach_prospect_id",
+              "value": "={{$('Outreach - Create Prospect').first().json.data.id}}"
+            },
+            {
+              "name": "outreach_sequence_id",
+              "value": "={{$('Map Theme to Sequence').first().json.sequenceId}}"
+            },
+            {
+              "name": "status",
+              "value": "completed"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http-update-replit",
+      "name": "Update Replit Database",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"message\": \"Workflow completed\", \"activityId\": $('Extract Theme & Map White Paper').first().json.activityId } }}"
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Receive Audio": {
+      "main": [
+        [
+          {
+            "node": "Download Audio File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Audio File": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Whisper - Transcribe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Whisper - Transcribe": {
+      "main": [
+        [
+          {
+            "node": "Extract Theme & Map White Paper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Theme & Map White Paper": {
+      "main": [
+        [
+          {
+            "node": "GPT-4o - Draft Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT-4o - Draft Email": {
+      "main": [
+        [
+          {
+            "node": "Outreach - Create Prospect",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outreach - Create Prospect": {
+      "main": [
+        [
+          {
+            "node": "Map Theme to Sequence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Theme to Sequence": {
+      "main": [
+        [
+          {
+            "node": "Outreach - Enroll in Sequence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outreach - Enroll in Sequence": {
+      "main": [
+        [
+          {
+            "node": "Update Replit Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Replit Database": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-02-23T00:00:00.000Z",
+  "versionId": "1"
+}

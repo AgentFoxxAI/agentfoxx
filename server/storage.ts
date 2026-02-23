@@ -1,38 +1,62 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import { db } from "./db";
+import { activities, type Activity, type InsertActivity, type UpdateActivityRequest } from "@shared/schema";
+import { eq, desc, isNotNull, sql } from "drizzle-orm";
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  createActivity(activity: InsertActivity): Promise<Activity>;
+  getActivities(): Promise<Activity[]>;
+  getActivity(id: number): Promise<Activity | undefined>;
+  updateActivity(id: number, updates: UpdateActivityRequest): Promise<Activity>;
+  getStats(): Promise<{
+    emailsSent: number;
+    leadsCreated: number;
+    themeDistribution: { theme: string; count: number }[];
+  }>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
+export class DatabaseStorage implements IStorage {
+  async createActivity(activity: InsertActivity): Promise<Activity> {
+    const [result] = await db.insert(activities).values(activity).returning();
+    return result;
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async getActivities(): Promise<Activity[]> {
+    return await db.select().from(activities).orderBy(desc(activities.createdAt)).limit(100);
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+  async getActivity(id: number): Promise<Activity | undefined> {
+    const [result] = await db.select().from(activities).where(eq(activities.id, id));
+    return result;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async updateActivity(id: number, updates: UpdateActivityRequest): Promise<Activity> {
+    const [result] = await db.update(activities)
+      .set(updates)
+      .where(eq(activities.id, id))
+      .returning();
+    return result;
+  }
+
+  async getStats() {
+    const completed = await db.select({ count: sql<number>`count(*)::int` }).from(activities).where(eq(activities.status, 'completed'));
+    const leads = await db.select({ count: sql<number>`count(*)::int` }).from(activities).where(isNotNull(activities.outreachProspectId));
+    
+    const themeDist = await db.select({
+      theme: activities.theme,
+      count: sql<number>`count(*)::int`
+    })
+    .from(activities)
+    .where(isNotNull(activities.theme))
+    .groupBy(activities.theme)
+    .orderBy(desc(sql`count(*)`))
+    .limit(5);
+
+    return {
+      emailsSent: completed[0]?.count || 0,
+      leadsCreated: leads[0]?.count || 0,
+      themeDistribution: themeDist.map(t => ({ theme: t.theme || 'Unknown', count: t.count }))
+    };
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
