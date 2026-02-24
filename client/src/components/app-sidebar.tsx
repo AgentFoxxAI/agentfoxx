@@ -23,7 +23,7 @@ export function AppSidebar() {
   const [location] = useLocation();
 
   return (
-    <Sidebar className="border-r border-border/50 bg-sidebar/50 backdrop-blur-xl">
+    <Sidebar className="border-r border-border/50 bg-background">
       <SidebarHeader className="p-6">
         <Link href="/">
           <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
@@ -52,7 +52,7 @@ export function AppSidebar() {
                     <SidebarMenuButton 
                       asChild 
                       isActive={isActive}
-                      className="mb-1 rounded-xl h-11 transition-all hover:bg-primary/5 active:bg-primary/10 data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:font-medium"
+                      className="mb-1 rounded-xl h-11 transition-all hover:bg-primary/5 active:bg-primary/10 data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:font-semibold"
                     >
                       <Link href={item.url} className="flex items-center gap-3 px-3">
                         <item.icon className="w-5 h-5" />
