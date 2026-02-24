@@ -53,6 +53,9 @@ export async function registerRoutes(
 
   app.post(api.reviews.create.path, async (req, res) => {
     try {
+      if (req.body.confidence !== undefined) {
+        req.body.confidence = String(req.body.confidence);
+      }
       const data = api.reviews.create.input.parse(req.body);
       const review = await storage.createReview(data);
       res.status(201).json(review);
