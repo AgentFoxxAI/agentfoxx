@@ -23,7 +23,7 @@ export function AppSidebar() {
   const [location] = useLocation();
 
   return (
-    <Sidebar className="border-r border-border/50 bg-background">
+    <Sidebar className="border-r border-border/50 bg-sidebar shadow-sm">
       <SidebarHeader className="p-6">
         <Link href="/">
           <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
