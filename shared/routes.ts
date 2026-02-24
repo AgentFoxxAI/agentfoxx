@@ -86,6 +86,20 @@ export const api = {
         404: errorSchemas.notFound,
       },
     },
+    decide: {
+      method: 'POST' as const,
+      path: '/api/reviews/:id/decide' as const,
+      input: z.object({
+        status: z.enum(["approved", "rejected"]),
+        emailBody: z.string(),
+        subjectLine: z.string(),
+      }),
+      responses: {
+        200: z.object({ success: z.boolean(), message: z.string() }),
+        404: errorSchemas.notFound,
+        500: errorSchemas.internal,
+      },
+    },
   },
   upload: {
     audio: {

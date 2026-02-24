@@ -54,3 +54,43 @@ export function useUpdateReview() {
     },
   });
 }
+
+export function useDecideReview() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation<
+    { success: boolean; message: string },
+    Error,
+    { id: number; status: "approved" | "rejected"; emailBody: string; subjectLine: string }
+  >({
+    mutationFn: async ({ id, status, emailBody, subjectLine }) => {
+      const res = await fetch(`/api/reviews/${id}/decide`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, emailBody, subjectLine }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "Request failed" }));
+        throw new Error(err.message || "Failed to submit decision");
+      }
+      return res.json();
+    },
+    onSuccess: (data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/reviews"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/reviews", id] });
+      toast({
+        title: "Decision Submitted",
+        description: data.message,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}

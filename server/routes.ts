@@ -72,6 +72,49 @@ export async function registerRoutes(
     }
   });
 
+  app.post(api.reviews.decide.path, async (req, res) => {
+    const id = parseInt(req.params.id);
+    try {
+      const { status, emailBody, subjectLine } = api.reviews.decide.input.parse(req.body);
+
+      const review = await storage.getReview(id);
+      if (!review) return res.status(404).json({ message: "Review not found" });
+
+      await storage.updateReview(id, { status, emailBody, subjectLine });
+
+      try {
+        const webhookResponse = await fetch(review.resumeUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status,
+            emailBody,
+            subjectLine,
+            reviewId: review.id,
+          }),
+        });
+
+        if (!webhookResponse.ok) {
+          console.error("n8n resume webhook failed:", webhookResponse.statusText);
+          return res.status(500).json({ message: "Failed to notify n8n workflow" });
+        }
+      } catch (webhookErr) {
+        console.error("n8n resume webhook error:", webhookErr);
+        return res.status(500).json({ message: "Failed to reach n8n workflow" });
+      }
+
+      res.json({
+        success: true,
+        message: status === "approved" ? "Email approved and sent to Outreach." : "Email draft rejected.",
+      });
+    } catch (e) {
+      if (e instanceof z.ZodError) {
+        return res.status(400).json({ message: e.errors[0].message });
+      }
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   app.post(api.upload.audio.path, uploader.single('audio'), async (req, res) => {
     try {
       if (!req.file) {
