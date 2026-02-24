@@ -1,0 +1,17 @@
+| Column         | Type                    | Notes                                                                             |
+| -------------- | ----------------------- | --------------------------------------------------------------------------------- |
+| id             | serial / auto-increment | Primary key                                                                       |
+| contactName    | text                    | Not null                                                                          |
+| contactEmail   | text                    | Not null                                                                          |
+| company        | text                    | Not null                                                                          |
+| classification | text                    | Not null (e.g., "qualified\_lead", "content\_nurture", "relationship\_building")  |
+| confidence     | real/float              | Not null                                                                          |
+| whitePaper     | text                    | Nullable                                                                          |
+| subjectLine    | text                    | Nullable                                                                          |
+| emailBody      | text                    | Not null — this is the AI-drafted email                                           |
+| transcription  | text                    | Nullable                                                                          |
+| keyInsights    | text                    | Nullable                                                                          |
+| status         | text                    | Default "pending\_approval" — values: "pending\_approval", "approved", "rejected" |
+| resumeUrl      | text                    | Not null — this is the n8n callback URL to resume the workflow                    |
+| timestamp      | text                    | The ISO timestamp from n8n                                                        |
+| createdAt      | timestamp               | Default now()                                                                     |

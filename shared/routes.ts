@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertActivitySchema, activities } from './schema';
+import { insertActivitySchema, activities, insertReviewSchema, reviews } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -51,6 +51,41 @@ export const api = {
         }),
       }
     }
+  },
+  reviews: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/reviews' as const,
+      responses: {
+        200: z.array(z.custom<typeof reviews.$inferSelect>()),
+      },
+    },
+    get: {
+      method: 'GET' as const,
+      path: '/api/reviews/:id' as const,
+      responses: {
+        200: z.custom<typeof reviews.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/reviews' as const,
+      input: insertReviewSchema,
+      responses: {
+        201: z.custom<typeof reviews.$inferSelect>(),
+        400: errorSchemas.validation,
+      },
+    },
+    update: {
+      method: 'PATCH' as const,
+      path: '/api/reviews/:id' as const,
+      input: insertReviewSchema.partial(),
+      responses: {
+        200: z.custom<typeof reviews.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
   },
   upload: {
     audio: {

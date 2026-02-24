@@ -11,6 +11,8 @@ import NotFound from "@/pages/not-found";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import HowItWorks from "./pages/HowItWorks";
+import ReviewList from "./pages/ReviewList";
+import ReviewDetail from "./pages/ReviewDetail";
 
 function Router() {
   return (
@@ -18,6 +20,8 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/how-it-works" component={HowItWorks} />
+      <Route path="/reviews" component={ReviewList} />
+      <Route path="/reviews/:id" component={ReviewDetail} />
       <Route component={NotFound} />
     </Switch>
   );

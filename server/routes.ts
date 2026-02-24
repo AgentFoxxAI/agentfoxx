@@ -38,6 +38,40 @@ export async function registerRoutes(
 
   app.use('/uploads', express.static(uploadDir));
 
+  // Reviews
+  app.get(api.reviews.list.path, async (_req, res) => {
+    const reviews = await storage.getReviews();
+    res.json(reviews);
+  });
+
+  app.get(api.reviews.get.path, async (req, res) => {
+    const id = parseInt(req.params.id);
+    const review = await storage.getReview(id);
+    if (!review) return res.status(404).json({ message: "Review not found" });
+    res.json(review);
+  });
+
+  app.post(api.reviews.create.path, async (req, res) => {
+    try {
+      const data = api.reviews.create.input.parse(req.body);
+      const review = await storage.createReview(data);
+      res.status(201).json(review);
+    } catch (e) {
+      res.status(400).json({ message: "Invalid review data" });
+    }
+  });
+
+  app.patch(api.reviews.update.path, async (req, res) => {
+    const id = parseInt(req.params.id);
+    try {
+      const updates = api.reviews.update.input.parse(req.body);
+      const review = await storage.updateReview(id, updates);
+      res.json(review);
+    } catch (e) {
+      res.status(400).json({ message: "Invalid update data" });
+    }
+  });
+
   app.post(api.upload.audio.path, uploader.single('audio'), async (req, res) => {
     try {
       if (!req.file) {

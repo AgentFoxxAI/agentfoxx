@@ -1,6 +1,7 @@
 import { pgTable, text, serial, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { sql } from "drizzle-orm";
 
 export const activities = pgTable("activities", {
   id: serial("id").primaryKey(),
@@ -18,10 +19,36 @@ export const activities = pgTable("activities", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const reviews = pgTable("reviews", {
+  id: serial("id").primaryKey(),
+  contactName: text("contact_name").notNull(),
+  contactEmail: text("contact_email").notNull(),
+  company: text("company").notNull(),
+  classification: text("classification").notNull(),
+  confidence: text("confidence").notNull(), // Store as text to avoid 'real' type issues in some pg drivers or just use numeric
+  whitePaper: text("white_paper"),
+  subjectLine: text("subject_line"),
+  emailBody: text("email_body").notNull(),
+  transcription: text("transcription"),
+  keyInsights: text("key_insights"),
+  status: text("status").notNull().default("pending_approval"),
+  resumeUrl: text("resume_url").notNull(),
+  timestamp: text("timestamp"), // ISO timestamp from n8n
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const insertActivitySchema = createInsertSchema(activities).omit({ 
   id: true, createdAt: true 
+});
+
+export const insertReviewSchema = createInsertSchema(reviews).omit({
+  id: true,
+  createdAt: true,
 });
 
 export type Activity = typeof activities.$inferSelect;
 export type InsertActivity = z.infer<typeof insertActivitySchema>;
 export type UpdateActivityRequest = Partial<InsertActivity>;
+
+export type Review = typeof reviews.$inferSelect;
+export type InsertReview = z.infer<typeof insertReviewSchema>;

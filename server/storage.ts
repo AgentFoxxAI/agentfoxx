@@ -1,5 +1,8 @@
 import { db } from "./db";
-import { activities, type Activity, type InsertActivity, type UpdateActivityRequest } from "@shared/schema";
+import { 
+  activities, type Activity, type InsertActivity, type UpdateActivityRequest,
+  reviews, type Review, type InsertReview
+} from "@shared/schema";
 import { eq, desc, isNotNull, sql } from "drizzle-orm";
 
 export interface IStorage {
@@ -12,6 +15,11 @@ export interface IStorage {
     leadsCreated: number;
     themeDistribution: { theme: string; count: number }[];
   }>;
+  // Review operations
+  createReview(review: InsertReview): Promise<Review>;
+  getReviews(): Promise<Review[]>;
+  getReview(id: number): Promise<Review | undefined>;
+  updateReview(id: number, updates: Partial<InsertReview>): Promise<Review>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -56,6 +64,28 @@ export class DatabaseStorage implements IStorage {
       leadsCreated: leads[0]?.count || 0,
       themeDistribution: themeDist.map(t => ({ theme: t.theme || 'Unknown', count: t.count }))
     };
+  }
+
+  async createReview(review: InsertReview): Promise<Review> {
+    const [result] = await db.insert(reviews).values(review).returning();
+    return result;
+  }
+
+  async getReviews(): Promise<Review[]> {
+    return await db.select().from(reviews).orderBy(desc(reviews.createdAt));
+  }
+
+  async getReview(id: number): Promise<Review | undefined> {
+    const [result] = await db.select().from(reviews).where(eq(reviews.id, id));
+    return result;
+  }
+
+  async updateReview(id: number, updates: Partial<InsertReview>): Promise<Review> {
+    const [result] = await db.update(reviews)
+      .set(updates)
+      .where(eq(reviews.id, id))
+      .returning();
+    return result;
   }
 }
 
