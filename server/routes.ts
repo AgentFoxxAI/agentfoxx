@@ -87,7 +87,10 @@ export async function registerRoutes(
 
       let webhookWarning = "";
       try {
-        const webhookResponse = await fetch(review.resumeUrl, {
+        const resumeUrlWithStatus = new URL(review.resumeUrl);
+        resumeUrlWithStatus.searchParams.set("status", status);
+
+        const webhookResponse = await fetch(resumeUrlWithStatus.toString(), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
