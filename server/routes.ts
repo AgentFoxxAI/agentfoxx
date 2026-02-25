@@ -85,6 +85,7 @@ export async function registerRoutes(
 
       await storage.updateReview(id, { status, emailBody, subjectLine });
 
+      let webhookWarning = "";
       try {
         const webhookResponse = await fetch(review.resumeUrl, {
           method: "POST",
@@ -99,16 +100,17 @@ export async function registerRoutes(
 
         if (!webhookResponse.ok) {
           console.error("n8n resume webhook failed:", webhookResponse.statusText);
-          return res.status(500).json({ message: "Failed to notify n8n workflow" });
+          webhookWarning = " (Warning: n8n workflow may have expired — the decision was saved but the workflow was not resumed.)";
         }
       } catch (webhookErr) {
         console.error("n8n resume webhook error:", webhookErr);
-        return res.status(500).json({ message: "Failed to reach n8n workflow" });
+        webhookWarning = " (Warning: could not reach n8n — the decision was saved but the workflow was not notified.)";
       }
 
+      const baseMessage = status === "approved" ? "Email approved and sent to Outreach." : "Email draft rejected.";
       res.json({
         success: true,
-        message: status === "approved" ? "Email approved and sent to Outreach." : "Email draft rejected.",
+        message: baseMessage + webhookWarning,
       });
     } catch (e) {
       if (e instanceof z.ZodError) {

@@ -3,7 +3,20 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { CheckCircle2, XCircle, Clock, ArrowRight, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, ArrowRight, Loader2, CalendarClock } from "lucide-react";
+
+function formatDate(dateStr: string | null) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
 
 export default function ReviewList() {
   const { data: reviews, isLoading } = useReviews();
@@ -38,6 +51,10 @@ export default function ReviewList() {
                 </div>
                 <p className="text-sm text-muted-foreground" data-testid={`text-info-${review.id}`}>
                   {review.company} &bull; {review.contactEmail}
+                </p>
+                <p className="text-xs text-muted-foreground flex items-center gap-1" data-testid={`text-date-${review.id}`}>
+                  <CalendarClock className="w-3 h-3" />
+                  {formatDate(review.timestamp || review.createdAt as unknown as string)}
                 </p>
               </div>
 
