@@ -20,8 +20,8 @@ export default function HowItWorks() {
     },
     {
       icon: <Mail className="w-8 h-8 text-amber-500" />,
-      title: "4. Automate",
-      description: "The prospect is created in Outreach.io and automatically added to the relevant follow-up sequence."
+      title: "4. Review & Send",
+      description: "The AI-drafted email is sent to the approval queue for human review. Once approved, the email is sent through Outlook to the prospect."
     }
   ];
 
