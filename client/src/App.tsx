@@ -5,6 +5,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { ThemeProvider, useTheme } from "@/components/theme-provider";
+import { Button } from "@/components/ui/button";
+import { Sun, Moon } from "lucide-react";
 import NotFound from "@/pages/not-found";
 
 // Pages
@@ -14,6 +17,21 @@ import HowItWorks from "./pages/HowItWorks";
 import ReviewList from "./pages/ReviewList";
 import ReviewDetail from "./pages/ReviewDetail";
 import Settings from "./pages/Settings";
+
+function ThemeToggleMobile() {
+  const { theme, toggleTheme } = useTheme();
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={toggleTheme}
+      data-testid="button-theme-toggle-mobile"
+      className="md:hidden hover:bg-primary/10 hover:text-primary"
+    >
+      {theme === "light" ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+    </Button>
+  );
+}
 
 function Router() {
   return (
@@ -36,6 +54,7 @@ function App() {
   } as React.CSSProperties;
 
   return (
+    <ThemeProvider>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <SidebarProvider style={sidebarStyle}>
@@ -48,6 +67,7 @@ function App() {
               
               <header className="flex items-center justify-between p-4 bg-background/80 backdrop-blur-md border-b border-border/50 z-10">
                 <SidebarTrigger data-testid="button-sidebar-toggle" className="hover:bg-primary/10 hover:text-primary" />
+                <ThemeToggleMobile />
               </header>
               
               <main className="flex-1 overflow-y-auto">
@@ -59,6 +79,7 @@ function App() {
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
+    </ThemeProvider>
   );
 }
 

@@ -48,9 +48,9 @@ export default function Dashboard() {
   const getStatusBadge = (status: string | null) => {
     switch (status?.toLowerCase()) {
       case 'completed':
-        return <Badge className="bg-green-500/15 text-green-700 hover:bg-green-500/25 border-0"><CheckCircle2 className="w-3 h-3 mr-1"/> Completed</Badge>;
+        return <Badge className="bg-green-500/15 text-green-700 dark:text-green-400 hover:bg-green-500/25 border-0"><CheckCircle2 className="w-3 h-3 mr-1"/> Completed</Badge>;
       case 'processing':
-        return <Badge className="bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 border-0"><Clock className="w-3 h-3 mr-1 animate-spin"/> Processing</Badge>;
+        return <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 hover:bg-amber-500/25 border-0"><Clock className="w-3 h-3 mr-1 animate-spin"/> Processing</Badge>;
       default:
         return <Badge variant="secondary" className="border-0 text-muted-foreground">Pending</Badge>;
     }
@@ -149,7 +149,7 @@ export default function Dashboard() {
                     />
                     <Tooltip 
                       cursor={{fill: 'hsl(var(--muted)/0.5)'}}
-                      contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
+                      contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--card-foreground))' }}
                     />
                     <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={30}>
                       {stats.themeDistribution.map((entry, index) => (

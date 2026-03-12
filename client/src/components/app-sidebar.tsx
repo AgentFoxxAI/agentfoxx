@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Mic, LayoutDashboard, HelpCircle, ClipboardCheck, Settings } from "lucide-react";
+import { Mic, LayoutDashboard, HelpCircle, ClipboardCheck, Settings, Sun, Moon } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -7,10 +7,13 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
+  SidebarFooter,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { useTheme } from "@/components/theme-provider";
+import { Button } from "@/components/ui/button";
 
 const navItems = [
   { title: "Record Activity", url: "/", icon: Mic },
@@ -22,6 +25,7 @@ const navItems = [
 
 export function AppSidebar() {
   const [location] = useLocation();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <Sidebar className="border-r border-border/50 bg-sidebar shadow-sm">
@@ -67,6 +71,28 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      <SidebarFooter className="p-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={toggleTheme}
+          data-testid="button-theme-toggle"
+          className="w-full justify-start gap-3 rounded-xl h-11 hover:bg-primary/5 active:bg-primary/10"
+        >
+          {theme === "light" ? (
+            <>
+              <Moon className="w-5 h-5" />
+              <span className="text-base">Dark Mode</span>
+            </>
+          ) : (
+            <>
+              <Sun className="w-5 h-5" />
+              <span className="text-base">Light Mode</span>
+            </>
+          )}
+        </Button>
+      </SidebarFooter>
     </Sidebar>
   );
 }

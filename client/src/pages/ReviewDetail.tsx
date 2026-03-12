@@ -202,7 +202,7 @@ export default function ReviewDetail() {
               </Button>
               <Button
                 variant="outline"
-                className="w-full h-14 text-lg text-red-600 border-red-200 hover:bg-red-50"
+                className="w-full h-14 text-lg text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950"
                 onClick={() => handleDecision("rejected")}
                 disabled={isDeciding}
                 data-testid="button-reject"
