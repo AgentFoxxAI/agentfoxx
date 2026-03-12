@@ -52,3 +52,14 @@ export type UpdateActivityRequest = Partial<InsertActivity>;
 
 export type Review = typeof reviews.$inferSelect;
 export type InsertReview = z.infer<typeof insertReviewSchema>;
+
+export const attendees = pgTable("attendees", {
+  id: serial("id").primaryKey(),
+  fullName: text("full_name").notNull(),
+  email: text("email").notNull(),
+  company: text("company"),
+});
+
+export const insertAttendeeSchema = createInsertSchema(attendees).omit({ id: true });
+export type Attendee = typeof attendees.$inferSelect;
+export type InsertAttendee = z.infer<typeof insertAttendeeSchema>;

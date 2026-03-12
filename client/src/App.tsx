@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import HowItWorks from "./pages/HowItWorks";
 import ReviewList from "./pages/ReviewList";
 import ReviewDetail from "./pages/ReviewDetail";
+import Settings from "./pages/Settings";
 
 function Router() {
   return (
@@ -22,6 +23,7 @@ function Router() {
       <Route path="/how-it-works" component={HowItWorks} />
       <Route path="/reviews" component={ReviewList} />
       <Route path="/reviews/:id" component={ReviewDetail} />
+      <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
     </Switch>
   );

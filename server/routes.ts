@@ -7,6 +7,7 @@ import { z } from "zod";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { parse } from "csv-parse/sync";
 
 // Configure multer for audio file uploads
 const uploadDir = path.join(process.cwd(), 'uploads');
@@ -220,6 +221,83 @@ export async function registerRoutes(
   app.get(api.activities.stats.path, async (req, res) => {
     const stats = await storage.getStats();
     res.json(stats);
+  });
+
+  // Attendee endpoints
+  const csvUploader = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+  app.get('/api/attendees/search', async (req, res) => {
+    const q = String(req.query.q || '');
+    const results = await storage.searchAttendees(q);
+    res.json(results);
+  });
+
+  app.get('/api/attendees/count', async (_req, res) => {
+    const count = await storage.getAttendeeCount();
+    res.json({ count });
+  });
+
+  app.post('/api/attendees/upload', csvUploader.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No CSV file provided' });
+      }
+
+      const csvContent = req.file.buffer.toString('utf-8');
+      const lines = csvContent.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+      let startIndex = 0;
+      for (let i = 0; i < lines.length; i++) {
+        const lower = lines[i].toLowerCase();
+        if (lower.includes('name') && lower.includes('email')) {
+          startIndex = i;
+          break;
+        }
+      }
+
+      const csvToParse = lines.slice(startIndex).join('\n');
+      const records = parse(csvToParse, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true,
+        relax_column_count: true,
+      }) as Record<string, string>[];
+
+      const attendeeRows: { fullName: string; email: string; company: string | null }[] = [];
+      for (const row of records) {
+        const name = row['Name'] || row['name'] || row['Full Name'] || row['full_name'] || row['FullName'] || '';
+        const email = row['Email'] || row['email'] || row['E-mail'] || '';
+        const company = row['Company'] || row['company'] || row['Organization'] || '';
+
+        const trimmedName = name.trim();
+        const trimmedEmail = email.trim();
+        const trimmedCompany = company.trim();
+
+        if (trimmedName && trimmedName !== '-' && trimmedEmail && trimmedEmail !== '-' && trimmedEmail.includes('@')) {
+          attendeeRows.push({
+            fullName: trimmedName,
+            email: trimmedEmail,
+            company: (trimmedCompany && trimmedCompany !== '-') ? trimmedCompany : null,
+          });
+        }
+      }
+
+      if (attendeeRows.length === 0) {
+        return res.status(400).json({ message: 'No valid attendee rows found in CSV. Ensure it has Name and Email columns.' });
+      }
+
+      const inserted = await storage.replaceAttendees(attendeeRows);
+
+      res.json({ success: true, count: inserted, message: `Imported ${inserted} attendees` });
+    } catch (error: any) {
+      console.error('CSV upload error:', error);
+      res.status(500).json({ message: error.message || 'Failed to process CSV' });
+    }
+  });
+
+  app.delete('/api/attendees', async (_req, res) => {
+    await storage.clearAttendees();
+    res.json({ success: true, message: 'All attendees cleared' });
   });
 
   // Seed data

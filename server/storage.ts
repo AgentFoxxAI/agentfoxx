@@ -1,9 +1,10 @@
 import { db } from "./db";
 import { 
   activities, type Activity, type InsertActivity, type UpdateActivityRequest,
-  reviews, type Review, type InsertReview
+  reviews, type Review, type InsertReview,
+  attendees, type Attendee, type InsertAttendee
 } from "@shared/schema";
-import { eq, desc, isNotNull, sql } from "drizzle-orm";
+import { eq, desc, isNotNull, sql, ilike } from "drizzle-orm";
 
 export interface IStorage {
   createActivity(activity: InsertActivity): Promise<Activity>;
@@ -20,6 +21,12 @@ export interface IStorage {
   getReviews(): Promise<Review[]>;
   getReview(id: number): Promise<Review | undefined>;
   updateReview(id: number, updates: Partial<InsertReview>): Promise<Review>;
+  // Attendee operations
+  searchAttendees(query: string): Promise<Attendee[]>;
+  getAttendeeCount(): Promise<number>;
+  clearAttendees(): Promise<void>;
+  bulkInsertAttendees(rows: InsertAttendee[]): Promise<number>;
+  replaceAttendees(rows: InsertAttendee[]): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -86,6 +93,49 @@ export class DatabaseStorage implements IStorage {
       .where(eq(reviews.id, id))
       .returning();
     return result;
+  }
+  async searchAttendees(query: string): Promise<Attendee[]> {
+    if (!query || query.length < 1) return [];
+    return await db.select().from(attendees)
+      .where(ilike(attendees.fullName, `%${query}%`))
+      .orderBy(attendees.fullName)
+      .limit(10);
+  }
+
+  async getAttendeeCount(): Promise<number> {
+    const [result] = await db.select({ count: sql<number>`count(*)::int` }).from(attendees);
+    return result?.count || 0;
+  }
+
+  async clearAttendees(): Promise<void> {
+    await db.delete(attendees);
+  }
+
+  async bulkInsertAttendees(rows: InsertAttendee[]): Promise<number> {
+    if (rows.length === 0) return 0;
+    const batchSize = 500;
+    let inserted = 0;
+    for (let i = 0; i < rows.length; i += batchSize) {
+      const batch = rows.slice(i, i + batchSize);
+      await db.insert(attendees).values(batch);
+      inserted += batch.length;
+    }
+    return inserted;
+  }
+
+  async replaceAttendees(rows: InsertAttendee[]): Promise<number> {
+    return await db.transaction(async (tx) => {
+      await tx.delete(attendees);
+      if (rows.length === 0) return 0;
+      const batchSize = 500;
+      let inserted = 0;
+      for (let i = 0; i < rows.length; i += batchSize) {
+        const batch = rows.slice(i, i + batchSize);
+        await tx.insert(attendees).values(batch);
+        inserted += batch.length;
+      }
+      return inserted;
+    });
   }
 }
 

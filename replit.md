@@ -12,6 +12,7 @@ AgentFoxx helps conference attendees capture voice memos after conversations, wh
 ## Database Tables
 - `activities` - Voice memo submissions (contact info, audio URL, processing status)
 - `reviews` - Human approval queue (email drafts from n8n awaiting approve/reject)
+- `attendees` - Conference attendee list for name autocomplete (fullName, email, company)
 
 ## Key Routes
 ### Activities
@@ -28,12 +29,19 @@ AgentFoxx helps conference attendees capture voice memos after conversations, wh
 - `PATCH /api/reviews/:id` - Update review fields
 - `POST /api/reviews/:id/decide` - Approve or reject a review (server-side POST to n8n resumeUrl)
 
+### Attendees (Autocomplete)
+- `GET /api/attendees/search?q=<query>` - Search attendees by name (for autocomplete)
+- `GET /api/attendees/count` - Get total attendee count
+- `POST /api/attendees/upload` - Upload CSV to replace attendee list (multipart form, field: file)
+- `DELETE /api/attendees` - Clear all attendees
+
 ## Frontend Pages
-- `/` - Home: voice recorder + contact form
+- `/` - Home: voice recorder + contact form with name autocomplete from attendee list
 - `/reviews` - Approval Queue: list of pending/approved/rejected reviews
 - `/reviews/:id` - Review Detail: editable email draft with Approve/Reject buttons
 - `/dashboard` - Stats KPIs + activities table
 - `/how-it-works` - Static explainer page
+- `/settings` - Attendee list management (CSV upload, clear list, count display)
 
 ## Important Implementation Details
 - Audio upload uses `multipart/form-data` with multer (not JSON)

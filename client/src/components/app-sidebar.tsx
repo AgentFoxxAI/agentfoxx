@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Mic, LayoutDashboard, HelpCircle, ClipboardCheck } from "lucide-react";
+import { Mic, LayoutDashboard, HelpCircle, ClipboardCheck, Settings } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -17,6 +17,7 @@ const navItems = [
   { title: "Approval Queue", url: "/reviews", icon: ClipboardCheck },
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "How It Works", url: "/how-it-works", icon: HelpCircle },
+  { title: "Settings", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {

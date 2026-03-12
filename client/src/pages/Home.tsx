@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -11,7 +11,6 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -20,6 +19,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Send, UserPlus, Sparkles, Mic } from "lucide-react";
+import type { Attendee } from "@shared/schema";
 
 // Frontend validation schema matching the backend requirements
 const formSchema = z.object({
@@ -35,6 +35,43 @@ export default function Home() {
   const [, setLocation] = useLocation();
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const uploadAudio = useUploadAudio();
+  const [suggestions, setSuggestions] = useState<Attendee[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [nameQuery, setNameQuery] = useState("");
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    if (nameQuery.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/attendees/search?q=${encodeURIComponent(nameQuery)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setSuggestions(data);
+          setShowSuggestions(data.length > 0);
+        }
+      } catch (err) {
+        console.error("Attendee search failed:", err);
+      }
+    }, 200);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [nameQuery]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -106,9 +143,46 @@ export default function Home() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Full Name *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Jane Doe" className="bg-background/50" {...field} />
-                        </FormControl>
+                        <div className="relative" ref={suggestionsRef}>
+                          <FormControl>
+                            <Input
+                              placeholder="Jane Doe"
+                              className="bg-background/50"
+                              data-testid="input-contact-name"
+                              {...field}
+                              onChange={(e) => {
+                                field.onChange(e);
+                                setNameQuery(e.target.value);
+                              }}
+                              onFocus={() => {
+                                if (suggestions.length > 0) setShowSuggestions(true);
+                              }}
+                              autoComplete="off"
+                            />
+                          </FormControl>
+                          {showSuggestions && suggestions.length > 0 && (
+                            <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto" data-testid="dropdown-suggestions">
+                              {suggestions.map((attendee) => (
+                                <button
+                                  key={attendee.id}
+                                  type="button"
+                                  className="w-full text-left px-3 py-2 hover:bg-accent/50 transition-colors first:rounded-t-lg last:rounded-b-lg"
+                                  data-testid={`suggestion-${attendee.id}`}
+                                  onClick={() => {
+                                    form.setValue("contactName", attendee.fullName);
+                                    form.setValue("contactEmail", attendee.email);
+                                    form.setValue("company", attendee.company || "");
+                                    setShowSuggestions(false);
+                                    setNameQuery("");
+                                  }}
+                                >
+                                  <div className="font-medium text-sm">{attendee.fullName}</div>
+                                  <div className="text-xs text-muted-foreground">{attendee.email}{attendee.company ? ` · ${attendee.company}` : ''}</div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
