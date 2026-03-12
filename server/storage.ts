@@ -54,7 +54,7 @@ export class DatabaseStorage implements IStorage {
 
   async getStats() {
     const completed = await db.select({ count: sql<number>`count(*)::int` }).from(activities).where(eq(activities.status, 'completed'));
-    const leads = await db.select({ count: sql<number>`count(*)::int` }).from(activities).where(isNotNull(activities.outreachProspectId));
+    const leads = await db.select({ count: sql<number>`count(*)::int` }).from(activities).where(isNotNull(activities.outlookContactId));
     
     const themeDist = await db.select({
       theme: activities.theme,

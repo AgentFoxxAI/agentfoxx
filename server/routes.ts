@@ -111,7 +111,7 @@ export async function registerRoutes(
         webhookWarning = " (Warning: could not reach n8n — the decision was saved but the workflow was not notified.)";
       }
 
-      const baseMessage = status === "approved" ? "Email approved and sent to Outreach." : "Email draft rejected.";
+      const baseMessage = status === "approved" ? "Email approved and sent to Outlook." : "Email draft rejected.";
       res.json({
         success: true,
         message: baseMessage + webhookWarning,
@@ -312,7 +312,7 @@ export async function registerRoutes(
           notes: "Met at the AI summit.",
           status: "completed",
           theme: "AI Integration",
-          outreachProspectId: "123"
+          outlookContactId: "123"
         });
       }
     } catch(e) {

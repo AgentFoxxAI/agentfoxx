@@ -115,7 +115,7 @@ export default function Home() {
             Capture Conversations
           </h1>
           <p className="text-muted-foreground mt-2 text-lg max-w-2xl">
-            Record your post-meeting thoughts. AgentFoxx will transcribe, analyze themes, and automatically draft follow-up emails in Outreach.io.
+            Record your post-meeting thoughts. AgentFoxx will transcribe, analyze themes, and automatically draft follow-up emails in Outlook.
           </p>
         </div>
       </div>

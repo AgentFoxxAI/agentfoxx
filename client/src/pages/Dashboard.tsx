@@ -91,7 +91,7 @@ export default function Dashboard() {
 
         <Card className="glass-card hover-elevate">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Outreach Leads</CardTitle>
+            <CardTitle className="text-sm font-medium">Outlook Leads</CardTitle>
             <Users className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
@@ -298,19 +298,19 @@ export default function Dashboard() {
                     )}
                   </div>
 
-                  {/* Outreach Info */}
-                  {(selectedActivity.outreachProspectId || selectedActivity.outreachSequenceId) && (
+                  {/* Outlook Info */}
+                  {(selectedActivity.outlookContactId || selectedActivity.outlookCampaignId) && (
                     <div className="grid grid-cols-2 gap-4">
-                       {selectedActivity.outreachProspectId && (
+                       {selectedActivity.outlookContactId && (
                          <div className="bg-muted/20 p-3 rounded-lg border border-border/50">
-                           <p className="text-xs text-muted-foreground mb-1">Outreach Prospect ID</p>
-                           <p className="font-mono text-sm">{selectedActivity.outreachProspectId}</p>
+                           <p className="text-xs text-muted-foreground mb-1">Outlook Contact ID</p>
+                           <p className="font-mono text-sm">{selectedActivity.outlookContactId}</p>
                          </div>
                        )}
-                       {selectedActivity.outreachSequenceId && (
+                       {selectedActivity.outlookCampaignId && (
                          <div className="bg-muted/20 p-3 rounded-lg border border-border/50">
-                           <p className="text-xs text-muted-foreground mb-1">Sequence ID</p>
-                           <p className="font-mono text-sm">{selectedActivity.outreachSequenceId}</p>
+                           <p className="text-xs text-muted-foreground mb-1">Campaign ID</p>
+                           <p className="font-mono text-sm">{selectedActivity.outlookCampaignId}</p>
                          </div>
                        )}
                     </div>

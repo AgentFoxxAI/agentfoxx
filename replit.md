@@ -7,7 +7,7 @@ AgentFoxx helps conference attendees capture voice memos after conversations, wh
 - **Frontend**: React + TypeScript + Vite + Shadcn UI + TanStack Query
 - **Backend**: Express.js (ESM) on port 5000
 - **Database**: PostgreSQL via Drizzle ORM
-- **External**: n8n workflow (Whisper transcription → GPT-4o classification → Outreach.io email)
+- **External**: n8n workflow (Whisper transcription → GPT-4o classification → Outlook email)
 
 ## Database Tables
 - `activities` - Voice memo submissions (contact info, audio URL, processing status)
