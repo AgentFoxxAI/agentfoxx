@@ -1,9 +1,22 @@
-import { useReviews } from "@/hooks/use-reviews";
+import { useState, useMemo } from "react";
+import { useReviews, useDeleteReview } from "@/hooks/use-reviews";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
-import { CheckCircle2, XCircle, Clock, ArrowRight, Loader2, CalendarClock } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, ArrowRight, Loader2, CalendarClock, Trash2, Search } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 function formatDate(dateStr: string | null) {
   if (!dateStr) return "";
@@ -20,6 +33,20 @@ function formatDate(dateStr: string | null) {
 
 export default function ReviewList() {
   const { data: reviews, isLoading } = useReviews();
+  const deleteReview = useDeleteReview();
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredReviews = useMemo(() => {
+    if (!reviews) return [];
+    if (!searchQuery.trim()) return reviews;
+    const q = searchQuery.toLowerCase();
+    return reviews.filter(
+      (r) =>
+        r.contactName.toLowerCase().includes(q) ||
+        r.contactEmail.toLowerCase().includes(q) ||
+        (r.company && r.company.toLowerCase().includes(q))
+    );
+  }, [reviews, searchQuery]);
 
   if (isLoading) {
     return (
@@ -40,8 +67,19 @@ export default function ReviewList() {
         </Badge>
       </div>
 
+      <div className="relative" data-testid="search-container">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Search by name, company, or email..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+          data-testid="input-search-reviews"
+        />
+      </div>
+
       <div className="grid gap-4" data-testid="list-reviews">
-        {reviews?.map((review) => (
+        {filteredReviews.map((review) => (
           <Card key={review.id} className="hover:bg-accent/5 transition-colors" data-testid={`card-review-${review.id}`}>
             <CardContent className="p-6 flex items-center justify-between">
               <div className="space-y-1">
@@ -60,6 +98,37 @@ export default function ReviewList() {
 
               <div className="flex items-center gap-4">
                 <StatusBadge status={review.status} reviewId={review.id} />
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-destructive"
+                      data-testid={`button-delete-review-${review.id}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Review</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete the review for <strong>{review.contactName}</strong>? This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel data-testid={`button-cancel-delete-${review.id}`}>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => deleteReview.mutate(review.id)}
+                        disabled={deleteReview.isPending}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        data-testid={`button-confirm-delete-${review.id}`}
+                      >
+                        {deleteReview.isPending ? "Deleting..." : "Delete"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
                 <Link href={`/reviews/${review.id}`}>
                   <Button variant="ghost" size="sm" data-testid={`button-review-${review.id}`}>
                     Review <ArrowRight className="ml-2 w-4 h-4" />
@@ -69,6 +138,14 @@ export default function ReviewList() {
             </CardContent>
           </Card>
         ))}
+
+        {filteredReviews.length === 0 && searchQuery.trim() && (reviews?.length ?? 0) > 0 && (
+          <div className="text-center py-12 bg-muted/20 rounded-xl border-2 border-dashed" data-testid="empty-search-state">
+            <Search className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="font-medium">No matching reviews</h3>
+            <p className="text-sm text-muted-foreground">Try a different search term.</p>
+          </div>
+        )}
 
         {reviews?.length === 0 && (
           <div className="text-center py-12 bg-muted/20 rounded-xl border-2 border-dashed" data-testid="empty-state">

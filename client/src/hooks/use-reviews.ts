@@ -55,6 +55,36 @@ export function useUpdateReview() {
   });
 }
 
+export function useDeleteReview() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation<{ success: boolean; message: string }, Error, number>({
+    mutationFn: async (id) => {
+      const res = await fetch(`/api/reviews/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete review");
+      return res.json();
+    },
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/reviews"] });
+      queryClient.removeQueries({ queryKey: ["/api/reviews", id] });
+      toast({
+        title: "Review Deleted",
+        description: "The review has been permanently removed.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Delete Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
 export function useDecideReview() {
   const queryClient = useQueryClient();
   const { toast } = useToast();

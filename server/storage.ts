@@ -21,6 +21,7 @@ export interface IStorage {
   getReviews(): Promise<Review[]>;
   getReview(id: number): Promise<Review | undefined>;
   updateReview(id: number, updates: Partial<InsertReview>): Promise<Review>;
+  deleteReview(id: number): Promise<boolean>;
   // Attendee operations
   searchAttendees(query: string): Promise<Attendee[]>;
   getAttendeeCount(): Promise<number>;
@@ -94,6 +95,12 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return result;
   }
+
+  async deleteReview(id: number): Promise<boolean> {
+    const result = await db.delete(reviews).where(eq(reviews.id, id)).returning();
+    return result.length > 0;
+  }
+
   async searchAttendees(query: string): Promise<Attendee[]> {
     if (!query || query.length < 1) return [];
     return await db.select().from(attendees)

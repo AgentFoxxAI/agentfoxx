@@ -1,18 +1,30 @@
 import { useRoute, useLocation } from "wouter";
-import { useReview, useDecideReview } from "@/hooks/use-reviews";
+import { useReview, useDecideReview, useDeleteReview } from "@/hooks/use-reviews";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
-import { Check, X, ArrowLeft, Mail, FileText, MessageSquare, Loader2 } from "lucide-react";
+import { Check, X, ArrowLeft, Mail, FileText, MessageSquare, Loader2, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function ReviewDetail() {
   const [, params] = useRoute("/reviews/:id");
   const [, setLocation] = useLocation();
   const { data: review, isLoading } = useReview(Number(params?.id));
   const decideReview = useDecideReview();
+  const deleteReview = useDeleteReview();
 
   const [emailBody, setEmailBody] = useState("");
   const [subjectLine, setSubjectLine] = useState("");
@@ -45,15 +57,54 @@ export default function ReviewDetail() {
     setLocation("/reviews");
   };
 
+  const handleDelete = async () => {
+    await deleteReview.mutateAsync(review.id);
+    setLocation("/reviews");
+  };
+
   return (
     <div className="max-w-4xl mx-auto py-8 px-4 space-y-6">
-      <Button
-        variant="ghost"
-        onClick={() => setLocation("/reviews")}
-        data-testid="button-back-to-queue"
-      >
-        <ArrowLeft className="mr-2 w-4 h-4" /> Back to Queue
-      </Button>
+      <div className="flex justify-between items-center">
+        <Button
+          variant="ghost"
+          onClick={() => setLocation("/reviews")}
+          data-testid="button-back-to-queue"
+        >
+          <ArrowLeft className="mr-2 w-4 h-4" /> Back to Queue
+        </Button>
+
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive border-destructive/30 hover:bg-destructive/10"
+              data-testid="button-delete-detail"
+            >
+              <Trash2 className="mr-2 w-4 h-4" /> Delete
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Review</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete the review for <strong>{review.contactName}</strong>? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-cancel-delete-detail">Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDelete}
+                disabled={deleteReview.isPending}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                data-testid="button-confirm-delete-detail"
+              >
+                {deleteReview.isPending ? "Deleting..." : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
 
       <div className="flex justify-between items-start">
         <div className="space-y-1">

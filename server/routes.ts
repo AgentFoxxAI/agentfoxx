@@ -76,6 +76,14 @@ export async function registerRoutes(
     }
   });
 
+  app.delete('/api/reviews/:id', async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ message: "Invalid review ID" });
+    const deleted = await storage.deleteReview(id);
+    if (!deleted) return res.status(404).json({ message: "Review not found" });
+    res.json({ success: true, message: "Review deleted" });
+  });
+
   app.post(api.reviews.decide.path, async (req, res) => {
     const id = parseInt(req.params.id);
     try {
