@@ -59,10 +59,10 @@ export default function ReviewList() {
   const pendingCount = reviews?.filter(r => r.status === "pending_approval").length || 0;
 
   return (
-    <div className="max-w-6xl mx-auto py-8 px-4 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold" data-testid="text-page-title">Human Approval Queue</h1>
-        <Badge variant="outline" className="px-3 py-1" data-testid="badge-pending-count">
+    <div className="max-w-6xl mx-auto py-4 px-4 space-y-4">
+      <div className="flex justify-between items-center gap-3">
+        <h1 className="text-xl sm:text-3xl font-bold leading-tight" data-testid="text-page-title">Approval Queue</h1>
+        <Badge variant="outline" className="px-3 py-1 shrink-0" data-testid="badge-pending-count">
           {pendingCount} Pending
         </Badge>
       </div>
@@ -70,40 +70,30 @@ export default function ReviewList() {
       <div className="relative" data-testid="search-container">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Search by name, company, or email..."
+          placeholder="Search name, company, email..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
+          className="pl-10 h-11"
           data-testid="input-search-reviews"
         />
       </div>
 
-      <div className="grid gap-4" data-testid="list-reviews">
+      <div className="grid gap-3" data-testid="list-reviews">
         {filteredReviews.map((review) => (
           <Card key={review.id} className="hover:bg-accent/5 transition-colors" data-testid={`card-review-${review.id}`}>
-            <CardContent className="p-6 flex items-center justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-lg" data-testid={`text-name-${review.id}`}>{review.contactName}</h3>
-                  <Badge variant="secondary" data-testid={`badge-class-${review.id}`}>{review.classification}</Badge>
+            <CardContent className="p-4">
+              {/* Top row: name + status + delete */}
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2 flex-wrap min-w-0">
+                  <h3 className="font-semibold text-base leading-tight" data-testid={`text-name-${review.id}`}>{review.contactName}</h3>
+                  <StatusBadge status={review.status} reviewId={review.id} />
                 </div>
-                <p className="text-sm text-muted-foreground" data-testid={`text-info-${review.id}`}>
-                  {review.company} &bull; {review.contactEmail}
-                </p>
-                <p className="text-xs text-muted-foreground flex items-center gap-1" data-testid={`text-date-${review.id}`}>
-                  <CalendarClock className="w-3 h-3" />
-                  {formatDate(review.timestamp || review.createdAt as unknown as string)}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <StatusBadge status={review.status} reviewId={review.id} />
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="text-muted-foreground hover:text-destructive"
+                      className="text-muted-foreground hover:text-destructive h-8 w-8 shrink-0"
                       data-testid={`button-delete-review-${review.id}`}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -129,9 +119,25 @@ export default function ReviewList() {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
+              </div>
+
+              {/* Middle row: company + email */}
+              <p className="text-sm text-muted-foreground truncate mb-1" data-testid={`text-info-${review.id}`}>
+                {review.company}{review.company && review.contactEmail ? ' · ' : ''}{review.contactEmail}
+              </p>
+
+              {/* Bottom row: date + classification + review button */}
+              <div className="flex items-center justify-between gap-2 mt-2 flex-wrap">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <p className="text-xs text-muted-foreground flex items-center gap-1" data-testid={`text-date-${review.id}`}>
+                    <CalendarClock className="w-3 h-3 shrink-0" />
+                    {formatDate(review.timestamp || review.createdAt as unknown as string)}
+                  </p>
+                  <Badge variant="secondary" className="text-xs" data-testid={`badge-class-${review.id}`}>{review.classification}</Badge>
+                </div>
                 <Link href={`/reviews/${review.id}`}>
-                  <Button variant="ghost" size="sm" data-testid={`button-review-${review.id}`}>
-                    Review <ArrowRight className="ml-2 w-4 h-4" />
+                  <Button variant="ghost" size="sm" className="h-9 px-3" data-testid={`button-review-${review.id}`}>
+                    Review <ArrowRight className="ml-1.5 w-4 h-4" />
                   </Button>
                 </Link>
               </div>
@@ -163,19 +169,19 @@ function StatusBadge({ status, reviewId }: { status: string; reviewId: number })
   switch (status) {
     case "approved":
       return (
-        <Badge className="bg-green-500/10 text-green-500 hover:bg-green-500/20 border-0" data-testid={`status-approved-${reviewId}`}>
+        <Badge className="bg-green-500/10 text-green-500 hover:bg-green-500/20 border-0 text-xs" data-testid={`status-approved-${reviewId}`}>
           <CheckCircle2 className="w-3 h-3 mr-1" /> Approved
         </Badge>
       );
     case "rejected":
       return (
-        <Badge className="bg-red-500/10 text-red-500 hover:bg-red-500/20 border-0" data-testid={`status-rejected-${reviewId}`}>
+        <Badge className="bg-red-500/10 text-red-500 hover:bg-red-500/20 border-0 text-xs" data-testid={`status-rejected-${reviewId}`}>
           <XCircle className="w-3 h-3 mr-1" /> Rejected
         </Badge>
       );
     default:
       return (
-        <Badge className="bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border-0" data-testid={`status-pending-${reviewId}`}>
+        <Badge className="bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border-0 text-xs" data-testid={`status-pending-${reviewId}`}>
           <Clock className="w-3 h-3 mr-1" /> Pending
         </Badge>
       );

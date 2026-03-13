@@ -21,7 +21,6 @@ import { Badge } from "@/components/ui/badge";
 import { Send, UserPlus, Sparkles, Mic } from "lucide-react";
 import type { Attendee } from "@shared/schema";
 
-// Frontend validation schema matching the backend requirements
 const formSchema = z.object({
   contactName: z.string().min(2, "Contact name is required"),
   contactEmail: z.string().email("Valid email is required"),
@@ -88,7 +87,6 @@ export default function Home() {
       form.setError("root", { message: "Please record audio before submitting." });
       return;
     }
-
     uploadAudio.mutate(
       { data, audioBlob },
       {
@@ -102,41 +100,59 @@ export default function Home() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      
+    <div className="max-w-6xl mx-auto py-4 px-4 sm:px-6 lg:px-8 space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
       {/* Hero Header */}
-      <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between bg-gradient-to-r from-primary/10 via-accent/50 to-transparent p-8 rounded-3xl border border-primary/10">
-        <div>
-          <Badge className="mb-4 bg-primary/15 text-primary hover:bg-primary/20 transition-colors border-0">
-            <Sparkles className="w-3 h-3 mr-1" />
-            AI Networking Assistant
-          </Badge>
-          <h1 className="text-4xl font-display font-bold text-foreground tracking-tight">
-            Capture Conversations
-          </h1>
-          <p className="text-muted-foreground mt-2 text-lg max-w-2xl">
-            Record your post-meeting thoughts. AgentFoxx will transcribe, analyze themes, and automatically draft follow-up emails in Outlook.
-          </p>
+      <div className="flex flex-col gap-3 bg-gradient-to-r from-primary/10 via-accent/50 to-transparent p-5 sm:p-8 rounded-2xl sm:rounded-3xl border border-primary/10">
+        <Badge className="self-start bg-primary/15 text-primary hover:bg-primary/20 transition-colors border-0">
+          <Sparkles className="w-3 h-3 mr-1" />
+          AI Networking Assistant
+        </Badge>
+        <h1 className="text-2xl sm:text-4xl font-display font-bold text-foreground tracking-tight">
+          Capture Conversations
+        </h1>
+        <p className="text-muted-foreground text-sm sm:text-lg max-w-2xl">
+          Record your post-meeting thoughts. AgentFoxx will transcribe, analyze themes, and draft follow-up emails in Outlook.
+        </p>
+      </div>
+
+      {/* Recorder — shown first on mobile */}
+      <div className="lg:hidden">
+        <h3 className="text-base font-display font-semibold mb-3 flex items-center gap-2">
+          <Mic className="w-4 h-4 text-primary" />
+          Voice Memo
+        </h3>
+        <AudioRecorder
+          onRecordingComplete={(blob) => setAudioBlob(blob)}
+          isProcessing={uploadAudio.isPending}
+        />
+        <div className="mt-4 bg-secondary/50 rounded-xl p-4 border border-border">
+          <h4 className="font-semibold text-foreground text-sm mb-1.5">Agent Instructions:</h4>
+          <ul className="space-y-1 text-xs text-muted-foreground list-disc list-inside ml-2">
+            <li>Speak naturally about the conversation you just had.</li>
+            <li>Mention key pain points, features discussed, or follow-up items.</li>
+            <li>The agent will extract themes and draft a personalized email.</li>
+          </ul>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        
-        {/* Left Column: Form */}
-        <div className="lg:col-span-5 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        {/* Form */}
+        <div className="lg:col-span-5 space-y-4">
           <Card className="glass-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                 <UserPlus className="w-5 h-5 text-primary" />
                 Contact Details
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm">
                 Who did you just speak with?
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <FormField
                     control={form.control}
                     name="contactName"
@@ -147,7 +163,7 @@ export default function Home() {
                           <FormControl>
                             <Input
                               placeholder="Jane Doe"
-                              className="bg-background/50"
+                              className="bg-background/50 h-12 text-base"
                               data-testid="input-contact-name"
                               {...field}
                               onChange={(e) => {
@@ -166,7 +182,7 @@ export default function Home() {
                                 <button
                                   key={attendee.id}
                                   type="button"
-                                  className="w-full text-left px-3 py-2 hover:bg-accent/50 transition-colors first:rounded-t-lg last:rounded-b-lg"
+                                  className="w-full text-left px-4 py-3 hover:bg-accent/50 transition-colors first:rounded-t-lg last:rounded-b-lg min-h-[52px]"
                                   data-testid={`suggestion-${attendee.id}`}
                                   onClick={() => {
                                     form.setValue("contactName", attendee.fullName);
@@ -194,7 +210,7 @@ export default function Home() {
                       <FormItem>
                         <FormLabel>Email Address *</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="jane@example.com" className="bg-background/50" {...field} />
+                          <Input type="email" placeholder="jane@example.com" className="bg-background/50 h-12 text-base" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -207,7 +223,7 @@ export default function Home() {
                       <FormItem>
                         <FormLabel>Company</FormLabel>
                         <FormControl>
-                          <Input placeholder="Acme Corp" className="bg-background/50" {...field} />
+                          <Input placeholder="Acme Corp" className="bg-background/50 h-12 text-base" {...field} />
                         </FormControl>
                       </FormItem>
                     )}
@@ -219,10 +235,10 @@ export default function Home() {
                       <FormItem>
                         <FormLabel>Context / Extra Notes</FormLabel>
                         <FormControl>
-                          <Textarea 
-                            placeholder="Met at booth 42. Interested in enterprise features." 
-                            className="resize-none bg-background/50 min-h-[100px]" 
-                            {...field} 
+                          <Textarea
+                            placeholder="Met at booth 42. Interested in enterprise features."
+                            className="resize-none bg-background/50 min-h-[90px] text-base"
+                            {...field}
                           />
                         </FormControl>
                       </FormItem>
@@ -235,10 +251,11 @@ export default function Home() {
                     </div>
                   )}
 
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={!audioBlob || uploadAudio.isPending}
-                    className="w-full h-12 text-base font-medium bg-gradient-to-r from-primary to-primary/80 hover:shadow-lg hover-elevate active-elevate-2 transition-all"
+                    className="w-full h-14 text-base font-medium bg-gradient-to-r from-primary to-primary/80 hover:shadow-lg hover-elevate active-elevate-2 transition-all"
+                    data-testid="button-submit"
                   >
                     {uploadAudio.isPending ? (
                       "Processing Workflow..."
@@ -255,18 +272,17 @@ export default function Home() {
           </Card>
         </div>
 
-        {/* Right Column: Audio Recorder */}
-        <div className="lg:col-span-7 space-y-6">
+        {/* Recorder — shown on desktop only in right column */}
+        <div className="hidden lg:block lg:col-span-7 space-y-6">
           <div className="sticky top-6">
             <h3 className="text-xl font-display font-semibold mb-4 flex items-center gap-2">
               <Mic className="w-5 h-5 text-primary" />
               Voice Memo
             </h3>
-            <AudioRecorder 
-              onRecordingComplete={(blob) => setAudioBlob(blob)} 
+            <AudioRecorder
+              onRecordingComplete={(blob) => setAudioBlob(blob)}
               isProcessing={uploadAudio.isPending}
             />
-            
             <div className="mt-8 bg-secondary/50 rounded-2xl p-6 border border-border">
               <h4 className="font-semibold text-foreground mb-2">Agent Instructions:</h4>
               <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside ml-4">

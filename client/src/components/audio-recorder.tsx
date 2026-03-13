@@ -20,7 +20,6 @@ export function AudioRecorder({ onRecordingComplete, isProcessing = false }: Aud
   const timerRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopTimer();
@@ -68,19 +67,18 @@ export function AudioRecorder({ onRecordingComplete, isProcessing = false }: Aud
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-        const url = URL.createObjectURL(audioBlob);
-        setAudioBlob(audioBlob);
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const url = URL.createObjectURL(blob);
+        setAudioBlob(blob);
         setAudioUrl(url);
-        onRecordingComplete(audioBlob);
+        onRecordingComplete(blob);
         stream.getTracks().forEach((track) => track.stop());
       };
 
-      mediaRecorder.start(100); // collect data every 100ms
+      mediaRecorder.start(100);
       setIsRecording(true);
       startTimer();
-      
-      // Clear previous recording if any
+
       if (audioUrl) URL.revokeObjectURL(audioUrl);
       setAudioBlob(null);
       setAudioUrl(null);
@@ -111,7 +109,6 @@ export function AudioRecorder({ onRecordingComplete, isProcessing = false }: Aud
 
   const togglePlayback = () => {
     if (!audioRef.current) return;
-    
     if (isPlaying) {
       audioRef.current.pause();
     } else {
@@ -121,17 +118,17 @@ export function AudioRecorder({ onRecordingComplete, isProcessing = false }: Aud
   };
 
   return (
-    <div className="flex flex-col items-center justify-center p-8 bg-card rounded-2xl border border-border shadow-sm">
-      
-      {/* Visualizer & Timer */}
-      <div className="relative flex items-center justify-center w-full mb-8 h-32">
+    <div className="flex flex-col items-center justify-center p-6 sm:p-8 bg-card rounded-2xl border border-border shadow-sm">
+
+      {/* Visualizer / Status */}
+      <div className="relative flex items-center justify-center w-full mb-6 h-24 sm:h-32">
         {isRecording ? (
           <div className="flex items-center gap-1 h-16">
             {[...Array(12)].map((_, i) => (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 className="w-2 bg-destructive rounded-full wave-bar"
-                style={{ 
+                style={{
                   animationDelay: `${i * 0.1}s`,
                   height: `${Math.max(20, Math.random() * 100)}%`
                 }}
@@ -141,40 +138,40 @@ export function AudioRecorder({ onRecordingComplete, isProcessing = false }: Aud
         ) : (
           <div className="flex flex-col items-center text-muted-foreground">
             {audioUrl ? (
-              <div className="text-primary font-medium text-lg">Recording saved</div>
+              <div className="text-primary font-medium text-base sm:text-lg">Recording saved ✓</div>
             ) : (
               <>
-                <Mic className="w-12 h-12 mb-2 opacity-20" />
-                <p>Ready to record meeting notes</p>
+                <Mic className="w-10 h-10 sm:w-12 sm:h-12 mb-2 opacity-20" />
+                <p className="text-sm sm:text-base">Ready to record</p>
               </>
             )}
           </div>
         )}
       </div>
 
-      <div className="text-3xl font-display font-light mb-8 tabular-nums tracking-wider">
+      <div className="text-3xl sm:text-4xl font-display font-light mb-6 tabular-nums tracking-wider">
         {formatTime(recordingTime)}
       </div>
 
-      {/* Hidden Audio Element for playback */}
       {audioUrl && (
-        <audio 
-          ref={audioRef} 
-          src={audioUrl} 
-          onEnded={() => setIsPlaying(false)} 
-          className="hidden" 
+        <audio
+          ref={audioRef}
+          src={audioUrl}
+          onEnded={() => setIsPlaying(false)}
+          className="hidden"
         />
       )}
 
       {/* Controls */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center justify-center gap-5 sm:gap-4">
         {!isRecording && !audioUrl && (
           <Button
             size="lg"
             onClick={startRecording}
-            className="rounded-full w-20 h-20 bg-primary hover:bg-primary/90 text-white shadow-lg hover-elevate active-elevate-2 group transition-all"
+            data-testid="button-start-recording"
+            className="rounded-full w-24 h-24 sm:w-20 sm:h-20 bg-primary hover:bg-primary/90 text-white shadow-lg hover-elevate active-elevate-2 group transition-all"
           >
-            <Mic className="w-8 h-8 group-hover:scale-110 transition-transform" />
+            <Mic className="w-10 h-10 sm:w-8 sm:h-8 group-hover:scale-110 transition-transform" />
           </Button>
         )}
 
@@ -183,9 +180,10 @@ export function AudioRecorder({ onRecordingComplete, isProcessing = false }: Aud
             size="lg"
             variant="destructive"
             onClick={stopRecording}
-            className="rounded-full w-20 h-20 recording-pulse shadow-lg hover-elevate active-elevate-2"
+            data-testid="button-stop-recording"
+            className="rounded-full w-24 h-24 sm:w-20 sm:h-20 recording-pulse shadow-lg hover-elevate active-elevate-2"
           >
-            <Square className="w-8 h-8 fill-current" />
+            <Square className="w-10 h-10 sm:w-8 sm:h-8 fill-current" />
           </Button>
         )}
 
@@ -195,27 +193,29 @@ export function AudioRecorder({ onRecordingComplete, isProcessing = false }: Aud
               variant="outline"
               size="icon"
               onClick={discardRecording}
+              data-testid="button-discard-recording"
               className="rounded-full w-14 h-14 border-destructive/20 text-destructive hover:bg-destructive/10 hover-elevate active-elevate-2"
               disabled={isProcessing}
             >
               <Trash2 className="w-6 h-6" />
             </Button>
-            
+
             <Button
               variant="default"
               size="icon"
               onClick={togglePlayback}
-              className="rounded-full w-16 h-16 bg-secondary text-secondary-foreground hover:bg-secondary/80 hover-elevate active-elevate-2"
+              data-testid="button-playback"
+              className="rounded-full w-20 h-20 sm:w-16 sm:h-16 bg-secondary text-secondary-foreground hover:bg-secondary/80 hover-elevate active-elevate-2"
               disabled={isProcessing}
             >
-              {isPlaying ? <Square className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
+              {isPlaying ? <Square className="w-7 h-7 fill-current" /> : <Play className="w-7 h-7 fill-current" />}
             </Button>
           </>
         )}
       </div>
-      
+
       {isProcessing && (
-        <div className="mt-6 flex items-center text-sm text-muted-foreground animate-pulse">
+        <div className="mt-5 flex items-center text-sm text-muted-foreground animate-pulse">
           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
           Processing audio and starting agent workflow...
         </div>

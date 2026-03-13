@@ -11,6 +11,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
@@ -26,11 +27,12 @@ const navItems = [
 export function AppSidebar() {
   const [location] = useLocation();
   const { theme, toggleTheme } = useTheme();
+  const { setOpenMobile } = useSidebar();
 
   return (
     <Sidebar className="border-r border-border/50 bg-sidebar shadow-sm">
-      <SidebarHeader className="p-6">
-        <Link href="/">
+      <SidebarHeader className="p-5">
+        <Link href="/" onClick={() => setOpenMobile(false)}>
           <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
             <div className="bg-primary/10 p-2 rounded-xl">
               <Mic className="w-6 h-6 text-primary" />
@@ -42,8 +44,8 @@ export function AppSidebar() {
           </div>
         </Link>
       </SidebarHeader>
-      
-      <SidebarContent className="px-4 mt-4">
+
+      <SidebarContent className="px-4 mt-2">
         <SidebarGroup>
           <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
             Menu
@@ -54,13 +56,13 @@ export function AppSidebar() {
                 const isActive = location === item.url;
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton 
-                      asChild 
+                    <SidebarMenuButton
+                      asChild
                       isActive={isActive}
-                      className="mb-1 rounded-xl h-11 transition-all hover:bg-primary/5 active:bg-primary/10 data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:font-semibold"
+                      className="mb-1 rounded-xl h-12 transition-all hover:bg-primary/5 active:bg-primary/10 data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:font-semibold"
                     >
-                      <Link href={item.url} className="flex items-center gap-3 px-3">
-                        <item.icon className="w-5 h-5" />
+                      <Link href={item.url} className="flex items-center gap-3 px-3" onClick={() => setOpenMobile(false)}>
+                        <item.icon className="w-5 h-5 shrink-0" />
                         <span className="text-base">{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
@@ -78,7 +80,7 @@ export function AppSidebar() {
           size="sm"
           onClick={toggleTheme}
           data-testid="button-theme-toggle"
-          className="w-full justify-start gap-3 rounded-xl h-11 hover:bg-primary/5 active:bg-primary/10"
+          className="w-full justify-start gap-3 rounded-xl h-12 hover:bg-primary/5 active:bg-primary/10"
         >
           {theme === "light" ? (
             <>

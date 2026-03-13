@@ -63,14 +63,17 @@ export default function ReviewDetail() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="max-w-4xl mx-auto py-4 px-4 space-y-4">
+
+      {/* Top nav bar */}
+      <div className="flex justify-between items-center gap-2">
         <Button
           variant="ghost"
           onClick={() => setLocation("/reviews")}
+          className="h-10 px-2 sm:px-3"
           data-testid="button-back-to-queue"
         >
-          <ArrowLeft className="mr-2 w-4 h-4" /> Back to Queue
+          <ArrowLeft className="mr-1.5 w-4 h-4" /> <span className="text-sm sm:text-base">Back</span>
         </Button>
 
         <AlertDialog>
@@ -78,10 +81,10 @@ export default function ReviewDetail() {
             <Button
               variant="outline"
               size="sm"
-              className="text-destructive border-destructive/30 hover:bg-destructive/10"
+              className="text-destructive border-destructive/30 hover:bg-destructive/10 h-10"
               data-testid="button-delete-detail"
             >
-              <Trash2 className="mr-2 w-4 h-4" /> Delete
+              <Trash2 className="mr-1.5 w-4 h-4" /> Delete
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
@@ -106,47 +109,52 @@ export default function ReviewDetail() {
         </AlertDialog>
       </div>
 
-      <div className="flex justify-between items-start">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold" data-testid="text-contact-name">{review.contactName}</h1>
-          <p className="text-muted-foreground" data-testid="text-contact-info">
-            {review.company} &bull; {review.contactEmail}
+      {/* Contact header */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+        <div className="space-y-0.5 min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold leading-tight" data-testid="text-contact-name">{review.contactName}</h1>
+          <p className="text-sm text-muted-foreground truncate" data-testid="text-contact-info">
+            {review.company}{review.company && review.contactEmail ? ' · ' : ''}{review.contactEmail}
           </p>
         </div>
-        <div className="flex flex-col items-end gap-2">
-          <Badge variant="outline" className="text-lg py-1 px-4" data-testid="badge-classification">
+        <div className="flex sm:flex-col items-center sm:items-end gap-2">
+          <Badge variant="outline" className="text-sm py-1 px-3" data-testid="badge-classification">
             {review.classification}
           </Badge>
           <span className="text-xs text-muted-foreground" data-testid="text-confidence">
-            Confidence: {review.confidence}
+            {review.confidence} confidence
           </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-6">
+      {/* Main layout: single col on mobile, 3-col on md+ */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+        {/* Email draft — full width on mobile, 2/3 on desktop */}
+        <div className="md:col-span-2 space-y-4">
           <Card>
-            <CardHeader className="flex flex-row items-center gap-2">
-              <Mail className="w-5 h-5 text-primary" />
-              <CardTitle>Email Draft</CardTitle>
+            <CardHeader className="flex flex-row items-center gap-2 pb-3">
+              <Mail className="w-5 h-5 text-primary shrink-0" />
+              <CardTitle className="text-base sm:text-lg">Email Draft</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
+            <CardContent className="space-y-3">
+              <div className="space-y-1.5">
                 <label className="text-sm font-medium">Subject Line</label>
                 <Input
                   value={subjectLine}
                   onChange={(e) => setSubjectLine(e.target.value)}
                   disabled={!isPending}
+                  className="h-11 text-base"
                   data-testid="input-subject-line"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <label className="text-sm font-medium">Body</label>
                 <Textarea
                   value={emailBody}
                   onChange={(e) => setEmailBody(e.target.value)}
                   disabled={!isPending}
-                  className="min-h-[300px] leading-relaxed"
+                  className="min-h-[260px] sm:min-h-[320px] leading-relaxed text-sm"
                   data-testid="input-email-body"
                 />
               </div>
@@ -154,41 +162,42 @@ export default function ReviewDetail() {
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-primary" />
-              <CardTitle>Transcription</CardTitle>
+            <CardHeader className="flex flex-row items-center gap-2 pb-3">
+              <MessageSquare className="w-5 h-5 text-primary shrink-0" />
+              <CardTitle className="text-base sm:text-lg">Transcription</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground italic" data-testid="text-transcription">
+              <p className="text-sm text-muted-foreground italic leading-relaxed" data-testid="text-transcription">
                 {review.transcription ? `"${review.transcription}"` : "No transcription available."}
               </p>
             </CardContent>
           </Card>
         </div>
 
-        <div className="space-y-6">
+        {/* Sidebar: insights + actions */}
+        <div className="space-y-4">
           <Card>
-            <CardHeader className="flex flex-row items-center gap-2">
-              <FileText className="w-5 h-5 text-primary" />
-              <CardTitle>Key Insights</CardTitle>
+            <CardHeader className="flex flex-row items-center gap-2 pb-3">
+              <FileText className="w-5 h-5 text-primary shrink-0" />
+              <CardTitle className="text-base sm:text-lg">Key Insights</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm" data-testid="text-key-insights">
+              <p className="text-sm leading-relaxed" data-testid="text-key-insights">
                 {review.keyInsights || "No insights available."}
               </p>
               {review.whitePaper && (
                 <div className="mt-4 p-3 bg-primary/5 rounded border border-primary/10">
                   <span className="text-xs font-semibold uppercase text-primary">Attached Asset</span>
-                  <p className="text-sm font-medium" data-testid="text-white-paper">{review.whitePaper}</p>
+                  <p className="text-sm font-medium mt-0.5" data-testid="text-white-paper">{review.whitePaper}</p>
                 </div>
               )}
             </CardContent>
           </Card>
 
           {isPending && (
-            <div className="sticky top-6 space-y-3">
+            <div className="space-y-3">
               <Button
-                className="w-full h-14 text-lg bg-green-600 hover:bg-green-700"
+                className="w-full h-14 text-base sm:text-lg bg-green-600 hover:bg-green-700"
                 onClick={() => handleDecision("approved")}
                 disabled={isDeciding}
                 data-testid="button-approve"
@@ -196,13 +205,13 @@ export default function ReviewDetail() {
                 {isDeciding ? (
                   <Loader2 className="mr-2 w-5 h-5 animate-spin" />
                 ) : (
-                  <Check className="mr-2 w-6 h-6" />
+                  <Check className="mr-2 w-5 h-5" />
                 )}
                 Approve &amp; Send
               </Button>
               <Button
                 variant="outline"
-                className="w-full h-14 text-lg text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950"
+                className="w-full h-14 text-base sm:text-lg text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950"
                 onClick={() => handleDecision("rejected")}
                 disabled={isDeciding}
                 data-testid="button-reject"
@@ -210,7 +219,7 @@ export default function ReviewDetail() {
                 {isDeciding ? (
                   <Loader2 className="mr-2 w-5 h-5 animate-spin" />
                 ) : (
-                  <X className="mr-2 w-6 h-6" />
+                  <X className="mr-2 w-5 h-5" />
                 )}
                 Reject Draft
               </Button>
@@ -226,6 +235,33 @@ export default function ReviewDetail() {
           )}
         </div>
       </div>
+
+      {/* Sticky approve/reject bar — mobile only, shown at bottom when pending */}
+      {isPending && (
+        <div className="fixed bottom-0 left-0 right-0 md:hidden z-50 bg-background/95 backdrop-blur-md border-t border-border p-3 flex gap-3">
+          <Button
+            className="flex-1 h-14 text-base bg-green-600 hover:bg-green-700"
+            onClick={() => handleDecision("approved")}
+            disabled={isDeciding}
+            data-testid="button-approve-sticky"
+          >
+            {isDeciding ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="mr-1.5 w-5 h-5" />}
+            Approve
+          </Button>
+          <Button
+            variant="outline"
+            className="flex-1 h-14 text-base text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950"
+            onClick={() => handleDecision("rejected")}
+            disabled={isDeciding}
+            data-testid="button-reject-sticky"
+          >
+            {isDeciding ? <Loader2 className="w-5 h-5 animate-spin" /> : <X className="mr-1.5 w-5 h-5" />}
+            Reject
+          </Button>
+        </div>
+      )}
+      {/* Bottom padding so sticky bar doesn't cover content on mobile */}
+      {isPending && <div className="h-20 md:hidden" />}
     </div>
   );
 }

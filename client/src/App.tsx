@@ -7,8 +7,9 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider, useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
-import { Sun, Moon } from "lucide-react";
+import { Sun, Moon, Mic } from "lucide-react";
 import NotFound from "@/pages/not-found";
+import { Link } from "wouter";
 
 // Pages
 import Home from "./pages/Home";
@@ -26,7 +27,7 @@ function ThemeToggleMobile() {
       size="icon"
       onClick={toggleTheme}
       data-testid="button-theme-toggle-mobile"
-      className="md:hidden hover:bg-primary/10 hover:text-primary"
+      className="hover:bg-primary/10 hover:text-primary h-10 w-10"
     >
       {theme === "light" ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
     </Button>
@@ -61,15 +62,24 @@ function App() {
           <div className="flex h-screen w-full bg-background overflow-hidden selection:bg-primary/20 selection:text-primary">
             <AppSidebar />
             <div className="flex flex-col flex-1 relative min-w-0">
-              
-              {/* Background decorative blob */}
+
               <div className="absolute top-0 right-0 -z-10 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[100px] pointer-events-none transform translate-x-1/3 -translate-y-1/3" />
-              
-              <header className="flex items-center justify-between p-4 bg-background/80 backdrop-blur-md border-b border-border/50 z-10">
-                <SidebarTrigger data-testid="button-sidebar-toggle" className="hover:bg-primary/10 hover:text-primary" />
+
+              <header className="flex items-center justify-between px-3 py-2 bg-background/80 backdrop-blur-md border-b border-border/50 z-10 min-h-[52px]">
+                <div className="flex items-center gap-2">
+                  <SidebarTrigger data-testid="button-sidebar-toggle" className="hover:bg-primary/10 hover:text-primary h-10 w-10" />
+                  <Link href="/">
+                    <div className="flex items-center gap-2 cursor-pointer md:hidden">
+                      <div className="bg-primary/10 p-1.5 rounded-lg">
+                        <Mic className="w-4 h-4 text-primary" />
+                      </div>
+                      <span className="font-display font-bold text-gradient text-base">AgentFoxx</span>
+                    </div>
+                  </Link>
+                </div>
                 <ThemeToggleMobile />
               </header>
-              
+
               <main className="flex-1 overflow-y-auto">
                 <Router />
               </main>
