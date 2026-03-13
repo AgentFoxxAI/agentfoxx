@@ -163,28 +163,38 @@ export function AudioRecorder({ onRecordingComplete, isProcessing = false }: Aud
       )}
 
       {/* Controls */}
-      <div className="flex items-center justify-center gap-5 sm:gap-4">
+      <div className="flex items-center justify-center gap-5 sm:gap-6">
         {!isRecording && !audioUrl && (
-          <Button
-            size="lg"
-            onClick={startRecording}
-            data-testid="button-start-recording"
-            className="rounded-full w-24 h-24 sm:w-20 sm:h-20 bg-primary hover:bg-primary/90 text-white shadow-lg hover-elevate active-elevate-2 group transition-all"
-          >
-            <Mic className="w-10 h-10 sm:w-8 sm:h-8 group-hover:scale-110 transition-transform" />
-          </Button>
+          <div className="relative flex items-center justify-center">
+            {/* Idle glow ring — subtle ping so user knows the button is live */}
+            <span className="absolute inset-0 rounded-full bg-primary/25 animate-ping" style={{ animationDuration: "2.4s" }} />
+            <span className="absolute inset-[-8px] rounded-full bg-primary/10 animate-ping" style={{ animationDuration: "2.4s", animationDelay: "0.4s" }} />
+            <Button
+              size="lg"
+              onClick={startRecording}
+              data-testid="button-start-recording"
+              className="relative rounded-full w-28 h-28 sm:w-24 sm:h-24 bg-primary hover:bg-primary/90 text-white shadow-xl hover-elevate active-elevate-2 group transition-all"
+            >
+              <Mic className="w-12 h-12 sm:w-10 sm:h-10 group-hover:scale-110 transition-transform" />
+            </Button>
+          </div>
         )}
 
         {isRecording && (
-          <Button
-            size="lg"
-            variant="destructive"
-            onClick={stopRecording}
-            data-testid="button-stop-recording"
-            className="rounded-full w-24 h-24 sm:w-20 sm:h-20 recording-pulse shadow-lg hover-elevate active-elevate-2"
-          >
-            <Square className="w-10 h-10 sm:w-8 sm:h-8 fill-current" />
-          </Button>
+          <div className="relative flex items-center justify-center">
+            {/* Recording pulse rings */}
+            <span className="absolute inset-0 rounded-full bg-destructive/40 animate-ping" style={{ animationDuration: "1s" }} />
+            <span className="absolute inset-[-10px] rounded-full bg-destructive/20 animate-ping" style={{ animationDuration: "1s", animationDelay: "0.3s" }} />
+            <Button
+              size="lg"
+              variant="destructive"
+              onClick={stopRecording}
+              data-testid="button-stop-recording"
+              className="relative rounded-full w-28 h-28 sm:w-24 sm:h-24 recording-pulse shadow-xl hover-elevate active-elevate-2"
+            >
+              <Square className="w-12 h-12 sm:w-10 sm:h-10 fill-current" />
+            </Button>
+          </div>
         )}
 
         {audioUrl && !isRecording && (
@@ -205,10 +215,10 @@ export function AudioRecorder({ onRecordingComplete, isProcessing = false }: Aud
               size="icon"
               onClick={togglePlayback}
               data-testid="button-playback"
-              className="rounded-full w-20 h-20 sm:w-16 sm:h-16 bg-secondary text-secondary-foreground hover:bg-secondary/80 hover-elevate active-elevate-2"
+              className="rounded-full w-20 h-20 sm:w-20 sm:h-20 bg-secondary text-secondary-foreground hover:bg-secondary/80 hover-elevate active-elevate-2"
               disabled={isProcessing}
             >
-              {isPlaying ? <Square className="w-7 h-7 fill-current" /> : <Play className="w-7 h-7 fill-current" />}
+              {isPlaying ? <Square className="w-8 h-8 fill-current" /> : <Play className="w-8 h-8 fill-current" />}
             </Button>
           </>
         )}

@@ -116,26 +116,6 @@ export default function Home() {
         </p>
       </div>
 
-      {/* Recorder — shown first on mobile */}
-      <div className="lg:hidden">
-        <h3 className="text-base font-display font-semibold mb-3 flex items-center gap-2">
-          <Mic className="w-4 h-4 text-primary" />
-          Voice Memo
-        </h3>
-        <AudioRecorder
-          onRecordingComplete={(blob) => setAudioBlob(blob)}
-          isProcessing={uploadAudio.isPending}
-        />
-        <div className="mt-4 bg-secondary/50 rounded-xl p-4 border border-border">
-          <h4 className="font-semibold text-foreground text-sm mb-1.5">Agent Instructions:</h4>
-          <ul className="space-y-1 text-xs text-muted-foreground list-disc list-inside ml-2">
-            <li>Speak naturally about the conversation you just had.</li>
-            <li>Mention key pain points, features discussed, or follow-up items.</li>
-            <li>The agent will extract themes and draft a personalized email.</li>
-          </ul>
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
         {/* Form */}
@@ -272,8 +252,8 @@ export default function Home() {
           </Card>
         </div>
 
-        {/* Recorder — shown on desktop only in right column */}
-        <div className="hidden lg:block lg:col-span-7 space-y-6">
+        {/* Recorder — below form on mobile, right column on desktop */}
+        <div className="lg:col-span-7 space-y-6">
           <div className="sticky top-6">
             <h3 className="text-xl font-display font-semibold mb-4 flex items-center gap-2">
               <Mic className="w-5 h-5 text-primary" />
