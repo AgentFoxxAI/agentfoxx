@@ -114,7 +114,7 @@ export default function Settings() {
             <Button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="flex-1 h-14 text-base"
+              className="w-full sm:flex-1 h-14 text-base"
               data-testid="button-upload-csv"
             >
               {uploading ? (
@@ -130,7 +130,7 @@ export default function Settings() {
               variant="destructive"
               onClick={() => clearMutation.mutate()}
               disabled={clearMutation.isPending || (countData?.count === 0)}
-              className="h-14 text-base sm:w-auto"
+              className="w-full sm:w-auto h-14 text-base"
               data-testid="button-clear-attendees"
             >
               {clearMutation.isPending ? (
