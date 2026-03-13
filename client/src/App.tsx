@@ -1,4 +1,5 @@
-import { Switch, Route } from "wouter";
+import { useState } from "react";
+import { Switch, Route, Link, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -7,9 +8,22 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider, useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
-import { Sun, Moon, Mic } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  Sun,
+  Moon,
+  Menu,
+  Mic,
+  LayoutDashboard,
+  HelpCircle,
+  ClipboardCheck,
+  Settings as SettingsIcon,
+} from "lucide-react";
 import NotFound from "@/pages/not-found";
-import { Link } from "wouter";
 
 // Pages
 import Home from "./pages/Home";
@@ -19,7 +33,87 @@ import ReviewList from "./pages/ReviewList";
 import ReviewDetail from "./pages/ReviewDetail";
 import Settings from "./pages/Settings";
 
-function ThemeToggleMobile() {
+const mobileNavItems = [
+  { title: "Record Activity", url: "/", icon: Mic },
+  { title: "Approval Queue", url: "/reviews", icon: ClipboardCheck },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { title: "How It Works", url: "/how-it-works", icon: HelpCircle },
+  { title: "Settings", url: "/settings", icon: SettingsIcon },
+];
+
+function MobileDrawerContent({ onClose }: { onClose: () => void }) {
+  const [location] = useLocation();
+  const { theme, toggleTheme } = useTheme();
+
+  return (
+    <div className="flex flex-col h-full bg-sidebar">
+      {/* Branding */}
+      <div className="px-5 py-5 border-b border-border/50">
+        <Link href="/" onClick={onClose}>
+          <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
+            <div className="bg-primary/10 p-2 rounded-xl">
+              <Mic className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-xl font-display font-bold text-gradient">AgentFoxx</h2>
+              <p className="text-xs text-muted-foreground">AI Networking Agent</p>
+            </div>
+          </div>
+        </Link>
+      </div>
+
+      {/* Nav items */}
+      <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
+        <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold px-3 mb-3">
+          Menu
+        </p>
+        {mobileNavItems.map((item) => {
+          const isActive = location === item.url;
+          return (
+            <Link key={item.title} href={item.url} onClick={onClose}>
+              <div
+                className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all cursor-pointer ${
+                  isActive
+                    ? "bg-primary/10 text-primary font-semibold"
+                    : "hover:bg-primary/5 text-foreground"
+                }`}
+                data-testid={`mobile-nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
+              >
+                <item.icon className="w-5 h-5 shrink-0" />
+                <span className="text-base">{item.title}</span>
+              </div>
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Theme toggle */}
+      <div className="px-4 py-4 border-t border-border/50">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={toggleTheme}
+          data-testid="button-theme-toggle-drawer"
+          className="w-full justify-start gap-3 rounded-xl h-12 hover:bg-primary/5 active:bg-primary/10"
+        >
+          {theme === "light" ? (
+            <>
+              <Moon className="w-5 h-5" />
+              <span className="text-base">Dark Mode</span>
+            </>
+          ) : (
+            <>
+              <Sun className="w-5 h-5" />
+              <span className="text-base">Light Mode</span>
+            </>
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
   return (
     <Button
@@ -48,47 +142,93 @@ function Router() {
   );
 }
 
-function App() {
+function AppShell() {
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+
   const sidebarStyle = {
     "--sidebar-width": "18rem",
     "--sidebar-width-icon": "4rem",
   } as React.CSSProperties;
 
   return (
-    <ThemeProvider>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <SidebarProvider style={sidebarStyle}>
-          <div className="flex h-screen w-full bg-background overflow-hidden selection:bg-primary/20 selection:text-primary">
-            <AppSidebar />
-            <div className="flex flex-col flex-1 relative min-w-0">
+    <SidebarProvider style={sidebarStyle}>
+      {/* Mobile Sheet drawer — only active below md */}
+      <Sheet open={mobileDrawerOpen} onOpenChange={setMobileDrawerOpen}>
+        <SheetContent
+          side="left"
+          className="w-72 p-0 md:hidden"
+          aria-describedby={undefined}
+        >
+          <SheetTitle className="sr-only">Navigation</SheetTitle>
+          <MobileDrawerContent onClose={() => setMobileDrawerOpen(false)} />
+        </SheetContent>
+      </Sheet>
 
-              <div className="absolute top-0 right-0 -z-10 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[100px] pointer-events-none transform translate-x-1/3 -translate-y-1/3" />
+      <div className="flex h-screen w-full bg-background overflow-hidden selection:bg-primary/20 selection:text-primary">
 
-              <header className="flex items-center justify-between px-3 py-2 bg-background/80 backdrop-blur-md border-b border-border/50 z-10 min-h-[52px]">
-                <div className="flex items-center gap-2">
-                  <SidebarTrigger data-testid="button-sidebar-toggle" className="hover:bg-primary/10 hover:text-primary h-10 w-10" />
-                  <Link href="/">
-                    <div className="flex items-center gap-2 cursor-pointer md:hidden">
-                      <div className="bg-primary/10 p-1.5 rounded-lg">
-                        <Mic className="w-4 h-4 text-primary" />
-                      </div>
-                      <span className="font-display font-bold text-gradient text-base">AgentFoxx</span>
-                    </div>
-                  </Link>
+        {/* Desktop persistent sidebar — hidden on mobile */}
+        <div className="hidden md:flex">
+          <AppSidebar />
+        </div>
+
+        <div className="flex flex-col flex-1 relative min-w-0">
+
+          <div className="absolute top-0 right-0 -z-10 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[100px] pointer-events-none transform translate-x-1/3 -translate-y-1/3" />
+
+          {/* Sticky header */}
+          <header className="sticky top-0 z-50 flex items-center justify-between px-3 py-2 bg-background/80 backdrop-blur-md border-b border-border/50 min-h-[52px]">
+            <div className="flex items-center gap-2">
+
+              {/* Mobile: hamburger opens Sheet drawer */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden h-10 w-10 hover:bg-primary/10 hover:text-primary"
+                onClick={() => setMobileDrawerOpen(true)}
+                data-testid="button-mobile-menu"
+                aria-label="Open navigation menu"
+              >
+                <Menu className="w-5 h-5" />
+              </Button>
+
+              {/* Desktop: shadcn SidebarTrigger for collapse/expand */}
+              <SidebarTrigger
+                data-testid="button-sidebar-toggle"
+                className="hidden md:flex hover:bg-primary/10 hover:text-primary h-10 w-10"
+              />
+
+              {/* App name — mobile only */}
+              <Link href="/">
+                <div className="flex items-center gap-2 cursor-pointer md:hidden">
+                  <div className="bg-primary/10 p-1.5 rounded-lg">
+                    <Mic className="w-4 h-4 text-primary" />
+                  </div>
+                  <span className="font-display font-bold text-gradient text-base">AgentFoxx</span>
                 </div>
-                <ThemeToggleMobile />
-              </header>
-
-              <main className="flex-1 overflow-y-auto">
-                <Router />
-              </main>
+              </Link>
             </div>
-          </div>
-        </SidebarProvider>
-        <Toaster />
-      </TooltipProvider>
-    </QueryClientProvider>
+
+            <ThemeToggle />
+          </header>
+
+          <main className="flex-1 overflow-y-auto">
+            <Router />
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+}
+
+function App() {
+  return (
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <AppShell />
+          <Toaster />
+        </TooltipProvider>
+      </QueryClientProvider>
     </ThemeProvider>
   );
 }

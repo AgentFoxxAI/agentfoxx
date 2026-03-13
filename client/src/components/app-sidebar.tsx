@@ -11,7 +11,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from "@/components/ui/sidebar";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
@@ -27,12 +26,11 @@ const navItems = [
 export function AppSidebar() {
   const [location] = useLocation();
   const { theme, toggleTheme } = useTheme();
-  const { setOpenMobile } = useSidebar();
 
   return (
     <Sidebar className="border-r border-border/50 bg-sidebar shadow-sm">
       <SidebarHeader className="p-5">
-        <Link href="/" onClick={() => setOpenMobile(false)}>
+        <Link href="/">
           <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
             <div className="bg-primary/10 p-2 rounded-xl">
               <Mic className="w-6 h-6 text-primary" />
@@ -61,7 +59,7 @@ export function AppSidebar() {
                       isActive={isActive}
                       className="mb-1 rounded-xl h-12 transition-all hover:bg-primary/5 active:bg-primary/10 data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:font-semibold"
                     >
-                      <Link href={item.url} className="flex items-center gap-3 px-3" onClick={() => setOpenMobile(false)}>
+                      <Link href={item.url} className="flex items-center gap-3 px-3">
                         <item.icon className="w-5 h-5 shrink-0" />
                         <span className="text-base">{item.title}</span>
                       </Link>
