@@ -71,8 +71,8 @@ export default function Dashboard() {
         <p className="text-muted-foreground mt-0.5 text-sm">Monitor agent performance and activity history.</p>
       </div>
 
-      {/* Stats — 2 cols on mobile, 3 on md+ */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+      {/* Stats — 1 col <360px, 2 cols 360px+, 3 cols md+ */}
+      <div className="grid grid-cols-1 min-[360px]:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
         <Card className="glass-card hover-elevate">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-4 px-4">
             <CardTitle className="text-xs sm:text-sm font-medium">Emails Drafted</CardTitle>
@@ -103,7 +103,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="glass-card hover-elevate col-span-2 md:col-span-1">
+        <Card className="glass-card hover-elevate min-[360px]:col-span-2 md:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-4 px-4">
             <CardTitle className="text-xs sm:text-sm font-medium">Total Conversations</CardTitle>
             <ActivityIcon className="h-4 w-4 text-primary shrink-0" />
