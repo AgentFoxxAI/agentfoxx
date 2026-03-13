@@ -113,8 +113,13 @@ export default function ReviewDetail() {
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
         <div className="space-y-0.5 min-w-0">
           <h1 className="text-2xl sm:text-3xl font-bold leading-tight" data-testid="text-contact-name">{review.contactName}</h1>
-          <p className="text-sm text-muted-foreground truncate" data-testid="text-contact-info">
-            {review.company}{review.company && review.contactEmail ? ' · ' : ''}{review.contactEmail}
+          {review.company && (
+            <p className="text-sm font-medium text-foreground/80 break-words" data-testid="text-contact-company">
+              {review.company}
+            </p>
+          )}
+          <p className="text-sm text-muted-foreground break-all" data-testid="text-contact-info">
+            {review.contactEmail}
           </p>
         </div>
         <div className="flex sm:flex-col items-center sm:items-end gap-2">
@@ -195,7 +200,7 @@ export default function ReviewDetail() {
           </Card>
 
           {isPending && (
-            <div className="space-y-3">
+            <div className="hidden md:block space-y-3">
               <Button
                 className="w-full h-14 text-base sm:text-lg bg-green-600 hover:bg-green-700"
                 onClick={() => handleDecision("approved")}
@@ -238,7 +243,7 @@ export default function ReviewDetail() {
 
       {/* Sticky approve/reject bar — mobile only, shown at bottom when pending */}
       {isPending && (
-        <div className="fixed bottom-0 left-0 right-0 md:hidden z-50 bg-background/95 backdrop-blur-md border-t border-border p-3 flex gap-3">
+        <div className="fixed bottom-0 left-0 right-0 md:hidden z-50 bg-background/95 backdrop-blur-md border-t border-border px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] flex gap-3">
           <Button
             className="flex-1 h-14 text-base bg-green-600 hover:bg-green-700"
             onClick={() => handleDecision("approved")}
