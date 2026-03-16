@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import express from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
@@ -8,27 +8,37 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { parse } from "csv-parse/sync";
+import crypto from "crypto";
 
-// Configure multer for audio file uploads
+// API key auth middleware for write endpoints.
+// Key is read from API_KEY env var. If not set, auth is disabled (dev mode).
+const API_KEY = process.env.API_KEY;
+
+function requireApiKey(req: Request, res: Response, next: NextFunction) {
+  if (!API_KEY) return next(); // no key configured = open (dev)
+  const provided = req.headers["x-api-key"] as string | undefined;
+  if (provided && crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(API_KEY))) {
+    return next();
+  }
+  return res.status(401).json({ message: "Unauthorized: invalid or missing x-api-key header" });
+}
+
+// Configure multer for audio file uploads (memory storage for Autoscale compatibility)
 const uploadDir = path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
 const uploader = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => {
-      cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-      const timestamp = Date.now();
-      const ext = path.extname(file.originalname) || '.webm';
-      cb(null, `audio_${timestamp}${ext}`);
-    }
-  }),
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 }, // 25MB limit (Whisper max)
   fileFilter: (req, file, cb) => {
-    cb(null, true);
+    const allowedTypes = ['audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/x-m4a', 'video/webm'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Unsupported audio format: ${file.mimetype}. Accepted: webm, mp4, mp3, ogg, wav, m4a`));
+    }
   }
 });
 
@@ -38,6 +48,18 @@ export async function registerRoutes(
 ): Promise<Server> {
 
   app.use('/uploads', express.static(uploadDir));
+
+  // Health/diagnostic endpoint
+  app.get('/api/health', (_req, res) => {
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      n8nWebhookConfigured: !!process.env.N8N_WEBHOOK_URL,
+      n8nWebhookUrl: process.env.N8N_WEBHOOK_URL ? `${process.env.N8N_WEBHOOK_URL.substring(0, 30)}...` : 'NOT SET',
+      nodeEnv: process.env.NODE_ENV,
+      uploadDir,
+    });
+  });
 
   // Reviews
   app.get(api.reviews.list.path, async (_req, res) => {
@@ -52,7 +74,7 @@ export async function registerRoutes(
     res.json(review);
   });
 
-  app.post(api.reviews.create.path, async (req, res) => {
+  app.post(api.reviews.create.path, requireApiKey, async (req, res) => {
     try {
       if (req.body.confidence !== undefined) {
         req.body.confidence = String(req.body.confidence);
@@ -76,7 +98,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete('/api/reviews/:id', async (req, res) => {
+  app.delete('/api/reviews/:id', requireApiKey, async (req, res) => {
     const id = parseInt(req.params.id);
     if (!Number.isFinite(id)) return res.status(400).json({ message: "Invalid review ID" });
     const deleted = await storage.deleteReview(id);
@@ -96,18 +118,15 @@ export async function registerRoutes(
 
       let webhookWarning = "";
       try {
-        const resumeUrlWithStatus = new URL(review.resumeUrl);
-        resumeUrlWithStatus.searchParams.set("status", status);
+        const resumeUrl = new URL(review.resumeUrl);
+        resumeUrl.searchParams.set("status", status);
 
-        const webhookResponse = await fetch(resumeUrlWithStatus.toString(), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            status,
-            emailBody,
-            subjectLine,
-            reviewId: review.id,
-          }),
+        // Use GET for n8n Wait node webhook resume — n8n reliably
+        // populates $json.query from query params on GET requests.
+        // POST body parsing varies by n8n version and can leave
+        // $json.query undefined, causing the "toLowerCase" crash.
+        const webhookResponse = await fetch(resumeUrl.toString(), {
+          method: "GET",
         });
 
         if (!webhookResponse.ok) {
@@ -144,7 +163,20 @@ export async function registerRoutes(
         return res.status(400).json({ message: 'contactName and contactEmail are required', field: 'body' });
       }
 
-      const audioUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+      const audioFileName = `audio_${Date.now()}${path.extname(req.file.originalname) || '.webm'}`;
+      const audioUrl = `${protocol}://${req.get('host')}/uploads/${audioFileName}`;
+
+      // Use buffer directly from memory storage (Autoscale compatible)
+      const audioBase64 = req.file.buffer.toString('base64');
+      const audioMimeType = req.file.mimetype || 'audio/webm';
+
+      // Also save to disk for local serving (best-effort, may not persist on Autoscale)
+      try {
+        fs.writeFileSync(path.join(uploadDir, audioFileName), req.file.buffer);
+      } catch (writeErr) {
+        console.warn('[AgentFoxx] Could not write audio to disk (expected on Autoscale):', writeErr);
+      }
 
       const activity = await storage.createActivity({
         contactName,
@@ -156,36 +188,63 @@ export async function registerRoutes(
       });
 
       const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL;
-      
+      let webhookStatus = 'skipped';
+
       if (n8nWebhookUrl) {
         try {
+          console.log(`[AgentFoxx] Sending webhook to n8n for activity ${activity.id}`);
+          console.log(`[AgentFoxx] Webhook URL: ${n8nWebhookUrl}`);
+          console.log(`[AgentFoxx] Audio base64 length: ${audioBase64.length} chars`);
+
+          const webhookPayload = {
+            activityId: activity.id,
+            audioUrl,
+            audioBase64,
+            audioMimeType,
+            audioFileName,
+            contactName,
+            contactEmail,
+            company,
+            notes,
+            callbackUrl: `${protocol}://${req.get('host')}/api/activities/${activity.id}`
+          };
+
+          const payloadSize = JSON.stringify(webhookPayload).length;
+          console.log(`[AgentFoxx] Webhook payload size: ${(payloadSize / 1024 / 1024).toFixed(2)} MB`);
+
           const response = await fetch(n8nWebhookUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              activityId: activity.id,
-              audioUrl,
-              contactName,
-              contactEmail,
-              company,
-              notes,
-              callbackUrl: `${req.protocol}://${req.get('host')}/api/activities/${activity.id}`
-            })
+            body: JSON.stringify(webhookPayload)
           });
 
           if (!response.ok) {
-            console.error('n8n webhook failed:', response.statusText);
+            const responseText = await response.text().catch(() => 'no body');
+            console.error(`[AgentFoxx] n8n webhook failed: ${response.status} ${response.statusText} - ${responseText}`);
+            webhookStatus = `failed: ${response.status}`;
+          } else {
+            console.log(`[AgentFoxx] n8n webhook succeeded: ${response.status}`);
+            webhookStatus = 'sent';
           }
-        } catch (webhookErr) {
-          console.error('n8n webhook fetch error:', webhookErr);
+        } catch (webhookErr: any) {
+          console.error('[AgentFoxx] n8n webhook fetch error:', webhookErr.message || webhookErr);
+          webhookStatus = `error: ${webhookErr.message}`;
         }
+      } else {
+        console.warn('[AgentFoxx] N8N_WEBHOOK_URL is NOT configured! Webhook skipped. Set this in Replit Secrets.');
+        webhookStatus = 'not_configured';
       }
 
       res.status(200).json({
         success: true,
         activityId: activity.id,
         audioUrl,
-        message: 'Audio uploaded successfully. Processing workflow...'
+        webhookStatus,
+        message: webhookStatus === 'sent'
+          ? 'Audio uploaded successfully. Processing workflow...'
+          : webhookStatus === 'not_configured'
+            ? 'Audio uploaded but n8n webhook URL is not configured. Set N8N_WEBHOOK_URL in Secrets.'
+            : `Audio uploaded but webhook ${webhookStatus}. Check server logs.`
       });
 
     } catch (error: any) {
@@ -245,7 +304,7 @@ export async function registerRoutes(
     res.json({ count });
   });
 
-  app.post('/api/attendees/upload', csvUploader.single('file'), async (req, res) => {
+  app.post('/api/attendees/upload', requireApiKey, csvUploader.single('file'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: 'No CSV file provided' });
@@ -303,7 +362,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete('/api/attendees', async (_req, res) => {
+  app.delete('/api/attendees', requireApiKey, async (_req, res) => {
     await storage.clearAttendees();
     res.json({ success: true, message: 'All attendees cleared' });
   });
