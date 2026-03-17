@@ -1,0 +1,661 @@
+{
+  "name": "agentfoxxai_fix2_UPDATED",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "conference-agent-webhook",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook - Conference Data",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -512,
+        720
+      ],
+      "webhookId": "conference-agent-webhook",
+      "id": "548114c2-6ce2-405b-96b3-b616245238a9"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.body.audioUrl }}",
+        "options": {}
+      },
+      "name": "Download Recording",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -288,
+        720
+      ],
+      "id": "bbaa9be6-db22-46dc-8f7d-bf006bb32fd8"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hooks.slack.com/services/YOUR/PARTNERSHIP/WEBHOOK",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "name": "Notify Partnership Team",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1024,
+        912
+      ],
+      "id": "3597bc94-7676-4e1a-8de5-0068f89c97b6"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://your-replit.repl.co/api/clarify",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"needs_clarification\",\n  \"contact\": \"Test User\",\n  \"email\": \"test@example.com\",\n  \"company\": \"TestCo\",\n  \"message\": \"The AI couldn't determine the meeting intent clearly. Please review and select the appropriate follow-up type.\",\n  \"options\": [\"qualified_lead\", \"content_nurture\", \"partnership\", \"relationship\"]\n}",
+        "options": {}
+      },
+      "name": "Request Clarification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1024,
+        1104
+      ],
+      "id": "cb4c5e8d-3e55-43a2-9da6-769292490187"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Helper: extract text from OpenAI Responses API format or plain .text\nconst getEmailText = (nodeName) => {\n    try {\n          const d = $(nodeName).first().json;\n          if (d.output && d.output[0] && d.output[0].content && d.output[0].content[0]) {\n                  return d.output[0].content[0].text || '';\n          }\n          return d.text || '';\n    } catch(e) { return ''; }\n};\n\n// 1. Get the email draft from whichever branch ran\nlet emailDraft = getEmailText('Hot lead email') ||\n                   getEmailText('Nurture Email') ||\n                   getEmailText('Relationship Building') ||\n                   '';\n\nif (!emailDraft || emailDraft === '') {\n    emailDraft = 'No email draft was generated. Please compose manually.';\n}\n\n// FIX #5: Strip any \"Subject:\" line from the email body\n// The AI sometimes includes Subject: in the body text - remove it\nemailDraft = emailDraft.replace(/^Subject:.*\\n?/im, '').trim();\n// Append static signature\nemailDraft = emailDraft + '\\n\\nBest regards,\\n\\nJuan Rivera\\nPartner Account Director U.S. and LATAM\\nTelesign\\nMobile: 1-818-470-0546';\n\n// 2. Get the analysis from the normalization node\nconst analysis = $('Normalize AI Output').first().json;\n\n// 3. Get original webhook data\nconst webhookData = $('Webhook - Conference Data').first().json.body;\n\n// 4. Get transcription\nconst transcription = $('Transcribe a recording').first().json.text || 'No transcription available';\n\n// Use GPT-4o suggested subject line, fallback to MRC Vegas 2026\nconst subjectLine = analysis.suggested_subject_line || 'MRC Vegas 2026';\n\n// FIX #3: Determine solution brief based on AI analysis\nconst solutionBrief = analysis.selected_solution_brief || null;\n\nreturn {\n    contactName: webhookData.contactName || 'Unknown',\n    contactEmail: webhookData.email || 'Unknown',\n    company: webhookData.company || 'Unknown',\n    classification: analysis.classification || 'needs_clarification',\n    confidence: analysis.confidence || 0,\n    solutionBrief: solutionBrief,\n    subjectLine: subjectLine,\n    emailBody: emailDraft,\n    transcription: transcription || 'No transcription available',\n    keyInsights: analysis.key_insights || 'No insights available',\n    status: 'pending_approval',\n    timestamp: new Date().toISOString()\n};"
+      },
+      "name": "Prepare Review Package",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1312,
+        528
+      ],
+      "id": "c34ff8e9-be25-48a2-9093-7bd035841abf"
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "options": {}
+      },
+      "name": "Wait for Manual Approval",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1760,
+        528
+      ],
+      "webhookId": "approve-email",
+      "id": "afdf1cc9-b231-4dcf-82a6-568718edd6fb"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cd17d56f-5230-4119-bfc2-0e3549d3ba72",
+              "leftValue": "={{ ($json.query?.status || $json.body?.status || '') }}",
+              "rightValue": "approved",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {
+          "ignoreCase": true
+        }
+      },
+      "name": "Approval Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1984,
+        528
+      ],
+      "id": "00f5874b-05f4-4f85-864a-aab4ead6a57d"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://defaultd818b557ea1c4070a3f1928330b7a3.0c.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/aad956574dad465c81ff105ab8388505/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=_nadzymZktLk11mp_HFOS_fongPeJawSPpn6tuUC0n4",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=={{ JSON.stringify({\n  to: $('Prepare Review Package').item.json.contactEmail,\n  subject: $('Prepare Review Package').item.json.subjectLine || 'MRC Vegas 2026',\n  body: $('Prepare Review Package').item.json.emailBody,\n  solutionBrief: $('Prepare Review Package').item.json.solutionBrief || '',\n  contactName: $('Prepare Review Package').item.json.contactName,\n  company: $('Prepare Review Package').item.json.company\n}) }}",
+        "options": {}
+      },
+      "name": "Send to Power Automate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2208,
+        432
+      ],
+      "id": "6f7c4529-a58d-406f-91f8-2027762fa35e"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-replit.repl.co/api/status",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'sent', contactEmail: $('Prepare Review Package').item.json.contactEmail, timestamp: new Date().toISOString() }) }}",
+        "options": {}
+      },
+      "name": "Update Replit Success",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2432,
+        432
+      ],
+      "id": "b744b978-fe70-4368-880e-9740e070216b"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-replit.repl.co/api/status",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'rejected', contactEmail: $('Prepare Review Package').item.json.contactEmail, timestamp: new Date().toISOString() }) }}",
+        "options": {}
+      },
+      "name": "Update Replit Rejected",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2208,
+        624
+      ],
+      "id": "4a784301-1701-4203-b8ee-4338a0496c05"
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        -64,
+        720
+      ],
+      "id": "48207025-92e8-4d90-a5bf-097237637e0c",
+      "name": "Transcribe a recording",
+      "credentials": {
+        "openAiApi": {
+          "id": "YpyxEWK49hUAz3jN",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=Contact: {{ $('Webhook - Conference Data').first().json.body.contactName }} at {{ $('Webhook - Conference Data').first().json.body.company }}\nContext Notes: {{ $('Webhook - Conference Data').first().json.body.contextNotes }}\nTranscription: {{ $json.text }}"
+            },
+            {
+              "role": "system",
+              "content": "You are a conference intelligence analyst for Telesign. Analyze the meeting transcription and classify the encounter.\n\nAvailable Telesign solution briefs (select the MOST relevant one based on conversation topics):\n- AccountIntegrity-en.pdf (account security across the customer lifecycle, fraud prevention, phishing, SIM swaps, recycled passwords)\n- Onboarding-en.pdf (safe & secure onboarding, new account fraud, identity proofing, bot detection, MFA)\n- IRSFInternationalRevenue.pdf (IRSF telecom fraud, international revenue share fraud, premium rate number fraud)\n- CommunicationForEveryEngagement-en.pdf (multichannel customer communication, messaging APIs, SMS/email/phone, global reach)\n- BankingOnTrust-en.pdf (FinTech & financial services, digital banking security, fraud prevention for finance, trust)\n- AccountTakeoverFraud-en.pdf (account takeover/ATO protection, suspicious activity detection, digital identity intelligence)\n\nClassify into ONE category:\n1. 'qualified_lead' - Budget/timeline mentioned, clear buying intent, decision maker\n2. 'content_nurture' - Interested but early stage, asked for resources/info\n3. 'partnership_opportunity' - Integration/partner discussions, not sales opportunity\n4. 'relationship_building' - General networking, recruiter, competitor, vague connection\n5. 'needs_clarification' - Audio unclear, ambiguous intent, missing key details\n\nOutput strict JSON:\n{\n  \"classification\": \"qualified_lead|content_nurture|partnership_opportunity|relationship_building|needs_clarification\",\n  \"confidence\": 0.0-1.0,\n  \"selected_solution_brief\": \"filename.pdf or null\",\n  \"key_insights\": \"Brief summary of what they care about\",\n  \"suggested_subject_line\": \"MRC Vegas 2026\",\n  \"reasoning\": \"Why this classification was chosen\"\n}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_schema",
+              "schema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"classification\": {\n      \"type\": \"string\",\n      \"enum\": [\"qualified_lead\", \"content_nurture\", \"partnership_opportunity\", \"relationship_building\", \"needs_clarification\"]\n    },\n    \"confidence\": {\n      \"type\": \"number\"\n    },\n    \"selected_solution_brief\": {\n      \"type\": [\"string\", \"null\"]\n    },\n    \"key_insights\": {\n      \"type\": \"string\"\n    },\n    \"suggested_subject_line\": {\n      \"type\": \"string\"\n    },\n    \"reasoning\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"classification\", \n    \"confidence\", \n    \"selected_solution_brief\", \n    \"key_insights\", \n    \"suggested_subject_line\", \n    \"reasoning\"\n  ],\n  \"additionalProperties\": false\n}\n\n",
+              "strict": true
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        112,
+        720
+      ],
+      "id": "acef78c4-b03a-475d-a172-6b12f323fedf",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "YpyxEWK49hUAz3jN",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let analysis;\n\nif ($json.classification) {\n    analysis = $json;\n}\nelse if (typeof $json.text === 'string') {\n    try {\n          analysis = JSON.parse($json.text);\n    } catch(e) {\n          analysis = { classification: 'needs_clarification' };\n    }\n}\nelse if ($json.output && $json.output[0]?.content?.[0]?.text) {\n    const raw = $json.output[0].content[0].text;\n    if (typeof raw === 'object') {\n          analysis = raw;\n    } else if (typeof raw === 'string') {\n          try {\n                  analysis = JSON.parse(raw);\n          } catch(e) {\n                  analysis = { classification: 'needs_clarification' };\n          }\n    } else {\n          analysis = { classification: 'needs_clarification' };\n    }\n}\nelse {\n    analysis = { classification: 'needs_clarification' };\n}\n\nconst validClassifications = [\n    'qualified_lead',\n    'content_nurture',\n    'partnership_opportunity',\n    'relationship_building',\n    'needs_clarification'\n  ];\n\nif (!validClassifications.includes(analysis.classification)) {\n    analysis.classification = 'needs_clarification';\n}\n\nreturn {\n    classification: analysis.classification,\n    confidence: analysis.confidence ?? null,\n    selected_solution_brief: analysis.selected_solution_brief ?? null,\n    key_insights: analysis.key_insights ?? null,\n    suggested_subject_line: analysis.suggested_subject_line || 'MRC Vegas 2026',\n    reasoning: analysis.reasoning ?? null\n};"
+      },
+      "name": "Normalize AI Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        384,
+        720
+      ],
+      "id": "16d6a2f9-fcba-4ae2-85dd-9a1c89aef44f"
+    },
+    {
+      "parameters": {
+        "mode": "expression",
+        "numberOutputs": 5,
+        "output": "={{\n  ({\n    \"qualified_lead\": 0,\n    \"content_nurture\": 1,\n    \"relationship_building\": 2,\n    \"partnership_opportunity\": 3,\n    \"needs_clarification\": 4\n  })[$json.classification] ?? 4\n}}\n"
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        592,
+        672
+      ],
+      "id": "815d7d00-2101-44d6-95c5-e481a5f5a7df",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=You are a helpful sales development rep for Telesign. This is a NURTURE prospect - interested but early stage. Write an educational, valuable follow-up email.\n\nRules:\n- Reference their specific interests from the conversation\n- Mention the attached Telesign solution brief: {{ $('Normalize AI Output').item.json.selected_solution_brief }}\n- Offer value first, soft sell second\n- Include a relevant industry insight or tip\n- Tone: Helpful, consultative, no pressure\n- DO NOT include a Subject: line in the email body. The subject is handled separately.\n- DO NOT include any email signature — it will be appended automatically.\n- Start the email with the greeting and body content only."
+            },
+            {
+              "content": "=Contact: {{ $('Webhook - Conference Data').first().json.body.contactName }}\nCompany: {{ $('Webhook - Conference Data').first().json.body.company }}\nInsights: {{ $('Normalize AI Output').item.json.key_insights }}\nTranscription: {{ $('Transcribe a recording').item.json.text }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        960,
+        528
+      ],
+      "id": "d2f41f47-eacd-443c-b6e7-91c9f658f785",
+      "name": "Nurture Email",
+      "credentials": {
+        "openAiApi": {
+          "id": "YpyxEWK49hUAz3jN",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=You are an expert sales email writer for Telesign at a conference. This is a HOT LEAD - they expressed buying intent. Write a compelling, urgent but professional follow-up email.\n\nRules:\n- Reference specific conversation points from the transcription\n- Mention the attached Telesign solution brief: {{ $('Normalize AI Output').item.json.selected_solution_brief }}\n- Suggest a specific next step (demo, proposal, next meeting)\n- Keep under 150 words\n- Tone: Enthusiastic, professional, momentum-driven\n- DO NOT include a Subject: line in the email body. The subject is handled separately.\n- DO NOT include any email signature — it will be appended automatically.\n- Start the email with the greeting and body content only."
+            },
+            {
+              "content": "=Contact: {{ $('Webhook - Conference Data').first().json.body.contactName }}\nCompany: {{ $('Webhook - Conference Data').first().json.body.company }}\nInsights: {{ $('Normalize AI Output').item.json.key_insights }}\nTranscription: {{ $('Transcribe a recording').item.json.text }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        960,
+        336
+      ],
+      "id": "b4771db8-528a-42ab-b3ab-7a15bf59d83f",
+      "name": "Hot lead email",
+      "credentials": {
+        "openAiApi": {
+          "id": "YpyxEWK49hUAz3jN",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=You are a friendly networking professional for Telesign. This is a RELATIONSHIP BUILDING contact - general networking, no immediate sales intent. Write a warm, low-pressure follow-up email to stay in touch.\n\nRules:\n- Reference the general industry topics discussed in the transcription\n- Mention the attached Telesign solution brief: {{ $('Normalize AI Output').item.json.selected_solution_brief }}\n- Focus on mutual value and \"keeping in touch\"\n- No hard sell or demo requests\n- Tone: Warm, authentic, professional\n- DO NOT include a Subject: line in the email body. The subject is handled separately.\n- DO NOT include any email signature — it will be appended automatically.\n- Start the email with the greeting and body content only."
+            },
+            {
+              "content": "=Contact: {{ $('Webhook - Conference Data').first().json.body.contactName }}\nCompany: {{ $('Webhook - Conference Data').first().json.body.company }}\nInsights: {{ $('Normalize AI Output').item.json.key_insights }}\nTranscription: {{ $('Transcribe a recording').item.json.text }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        960,
+        720
+      ],
+      "id": "b5f94013-be06-4dc0-919a-080b036df534",
+      "name": "Relationship Building",
+      "credentials": {
+        "openAiApi": {
+          "id": "YpyxEWK49hUAz3jN",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://agentfoxxAI.replit.app/api/reviews",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "faf080fcb3dbd07b4e6cdfd2c9ed3a37117e234da40a5b7736f82a575a726cef"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contactName: $json.contactName, contactEmail: $json.contactEmail, company: $json.company, classification: $json.classification, confidence: $json.confidence, whitePaper: $json.solutionBrief, subjectLine: $json.subjectLine, emailBody: $json.emailBody, transcription: $json.transcription, keyInsights: $json.keyInsights, status: $json.status, timestamp: $json.timestamp, resumeUrl: $execution.resumeUrl } ) }}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1536,
+        528
+      ],
+      "id": "1b40ac2f-d9ba-47ae-8c95-0b1b32ef6f51",
+      "name": "Send to Review Dashboard"
+    },
+    {
+      "parameters": {
+        "content": "FIXED: Approval Check now uses optional chaining ($json.query?.status || $json.body?.status) to prevent toLowerCase crash. Replit /decide endpoint changed from POST to GET for reliable n8n Wait webhook resume.",
+        "height": 320,
+        "width": 608
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1520,
+        800
+      ],
+      "typeVersion": 1,
+      "id": "9df4d9c0-fcee-44b5-835b-77fd44c7cf33",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Conference Data": {
+      "main": [
+        [
+          {
+            "node": "Download Recording",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Recording": {
+      "main": [
+        [
+          {
+            "node": "Transcribe a recording",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Review Package": {
+      "main": [
+        [
+          {
+            "node": "Send to Review Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Manual Approval": {
+      "main": [
+        [
+          {
+            "node": "Approval Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approval Check": {
+      "main": [
+        [
+          {
+            "node": "Send to Power Automate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Replit Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Power Automate": {
+      "main": [
+        [
+          {
+            "node": "Update Replit Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribe a recording": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Normalize AI Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize AI Output": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Hot lead email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Nurture Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Relationship Building",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Partnership Team",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Request Clarification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nurture Email": {
+      "main": [
+        [
+          {
+            "node": "Prepare Review Package",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hot lead email": {
+      "main": [
+        [
+          {
+            "node": "Prepare Review Package",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Relationship Building": {
+      "main": [
+        [
+          {
+            "node": "Prepare Review Package",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Review Dashboard": {
+      "main": [
+        [
+          {
+            "node": "Wait for Manual Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "7336fe55-46a7-4e30-b602-b8565dd95903",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3e0ede047dd980005ec00232d08fb330bef86d1ac7a1665b09f318b14cf5a430"
+  },
+  "id": "pB2aDks4My3ZsyQ8",
+  "tags": [
+    {
+      "updatedAt": "2026-02-24T05:28:00.566Z",
+      "createdAt": "2026-02-24T05:28:00.566Z",
+      "id": "u7mCjFmYDXvlNvOH",
+      "name": "sales workflows"
+    }
+  ]
+}
