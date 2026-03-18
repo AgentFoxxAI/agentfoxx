@@ -121,27 +121,40 @@ export async function registerRoutes(
         const resumeUrl = new URL(review.resumeUrl);
         resumeUrl.searchParams.set("status", status);
 
-        // Use GET for n8n Wait node webhook resume — n8n reliably
-        // populates $json.query from query params on GET requests.
-        // POST body parsing varies by n8n version and can leave
-        // $json.query undefined, causing the "toLowerCase" crash.
-        const webhookResponse = await fetch(resumeUrl.toString(), {
+        const callbackUrl = resumeUrl.toString();
+        console.log("[CALLBACK] Calling n8n resume URL:", callbackUrl);
+        console.log("[CALLBACK] Stored resumeUrl:", review.resumeUrl);
+        console.log("[CALLBACK] Review ID:", id, "Status:", status);
+
+        const webhookResponse = await fetch(callbackUrl, {
           method: "GET",
+          redirect: "follow",
+          signal: AbortSignal.timeout(15000),
         });
 
+        const responseText = await webhookResponse.text();
+        console.log("[CALLBACK] n8n response status:", webhookResponse.status);
+        console.log("[CALLBACK] n8n response headers:", JSON.stringify(Object.fromEntries(webhookResponse.headers.entries())));
+        console.log("[CALLBACK] n8n response body:", responseText.substring(0, 500));
+
         if (!webhookResponse.ok) {
-          console.error("n8n resume webhook failed:", webhookResponse.statusText);
-          webhookWarning = " (Warning: n8n workflow may have expired — the decision was saved but the workflow was not resumed.)";
+          console.error("[CALLBACK] n8n resume webhook failed:", webhookResponse.status, webhookResponse.statusText);
+          webhookWarning = ` (Warning: n8n returned ${webhookResponse.status} — the decision was saved but the workflow may not have resumed.)`;
+        } else {
+          console.log("[CALLBACK] n8n resume webhook succeeded!");
         }
-      } catch (webhookErr) {
-        console.error("n8n resume webhook error:", webhookErr);
-        webhookWarning = " (Warning: could not reach n8n — the decision was saved but the workflow was not notified.)";
+      } catch (webhookErr: any) {
+        console.error("[CALLBACK] n8n resume webhook error:", webhookErr?.message || webhookErr);
+        console.error("[CALLBACK] Error stack:", webhookErr?.stack);
+        webhookWarning = ` (Warning: could not reach n8n — ${webhookErr?.message || "unknown error"})`;
       }
 
       const baseMessage = status === "approved" ? "Email approved and sent to Outlook." : "Email draft rejected.";
       res.json({
         success: true,
         message: baseMessage + webhookWarning,
+        callbackUrl: review.resumeUrl,
+        callbackStatus: webhookWarning ? "warning" : "ok",
       });
     } catch (e) {
       if (e instanceof z.ZodError) {
