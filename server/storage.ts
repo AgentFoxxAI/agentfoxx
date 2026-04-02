@@ -5,8 +5,9 @@ import {
   attendees, type Attendee, type InsertAttendee,
   profiles, type Profile,
   events, type Event, type InsertEvent,
+  broadcasts, type Broadcast, type InsertBroadcast,
 } from "@shared/schema";
-import { eq, desc, isNotNull, sql, ilike, and } from "drizzle-orm";
+import { eq, desc, isNotNull, sql, ilike, and, or } from "drizzle-orm";
 
 interface ListFilters {
   eventId?: number;
@@ -49,6 +50,19 @@ export interface IStorage {
   clearAttendees(): Promise<void>;
   bulkInsertAttendees(rows: InsertAttendee[]): Promise<number>;
   replaceAttendees(rows: InsertAttendee[]): Promise<number>;
+
+  // Broadcasts
+  getBroadcasts(eventId?: number, userId?: string): Promise<Broadcast[]>;
+  createBroadcast(broadcast: InsertBroadcast): Promise<Broadcast>;
+
+  // Leaderboard
+  getLeaderboard(eventId?: number): Promise<Array<{
+    userId: string;
+    name: string;
+    points: number;
+    leadCount: number;
+    topClassification: string;
+  }>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -235,6 +249,85 @@ export class DatabaseStorage implements IStorage {
       }
       return inserted;
     });
+  }
+
+  // ── Broadcasts ──────────────────────────────────────────────────
+
+  async getBroadcasts(eventId?: number, userId?: string): Promise<Broadcast[]> {
+    const conditions = [];
+    if (eventId) conditions.push(eq(broadcasts.eventId, eventId));
+
+    // User sees: broadcasts targeted to "all" OR targeted to them specifically
+    if (userId) {
+      conditions.push(
+        or(
+          eq(broadcasts.targetType, "all"),
+          eq(broadcasts.targetUserId, userId),
+          eq(broadcasts.fromUserId, userId),
+        )!
+      );
+    }
+
+    const query = db.select().from(broadcasts).orderBy(desc(broadcasts.createdAt)).limit(50);
+    if (conditions.length > 0) {
+      return await query.where(and(...conditions));
+    }
+    return await query;
+  }
+
+  async createBroadcast(broadcast: InsertBroadcast): Promise<Broadcast> {
+    const [result] = await db.insert(broadcasts).values(broadcast).returning();
+    return result;
+  }
+
+  // ── Leaderboard ─────────────────────────────────────────────────
+
+  async getLeaderboard(eventId?: number): Promise<Array<{
+    userId: string;
+    name: string;
+    points: number;
+    leadCount: number;
+    topClassification: string;
+  }>> {
+    // Quality-weighted scoring
+    const pointsExpression = sql<number>`
+      SUM(CASE
+        WHEN ${reviews.classification} = 'qualified_lead' THEN 5
+        WHEN ${reviews.classification} = 'partnership_opportunity' THEN 4
+        WHEN ${reviews.classification} = 'content_nurture' THEN 3
+        WHEN ${reviews.classification} = 'relationship_building' THEN 2
+        WHEN ${reviews.classification} = 'needs_clarification' THEN 1
+        ELSE 0
+      END)::int
+    `;
+
+    const conditions = [];
+    if (eventId) conditions.push(eq(reviews.eventId, eventId));
+    conditions.push(isNotNull(reviews.userId));
+
+    const results = await db
+      .select({
+        userId: reviews.userId,
+        name: profiles.name,
+        points: pointsExpression,
+        leadCount: sql<number>`count(*)::int`,
+        topClassification: sql<string>`
+          mode() WITHIN GROUP (ORDER BY ${reviews.classification})
+        `,
+      })
+      .from(reviews)
+      .innerJoin(profiles, eq(reviews.userId, profiles.id))
+      .where(and(...conditions))
+      .groupBy(reviews.userId, profiles.name)
+      .orderBy(desc(pointsExpression));
+
+    return results.map((r) => ({
+      userId: r.userId!,
+      name: r.name,
+      points: r.points || 0,
+      leadCount: r.leadCount || 0,
+      topClassification: r.topClassification || "none",
+    }));
   }
 }
 

@@ -38,6 +38,10 @@ import ReviewList from "./pages/ReviewList";
 import ReviewDetail from "./pages/ReviewDetail";
 import Settings from "./pages/Settings";
 import AdminEvents from "./pages/AdminEvents";
+import Leaderboard from "./pages/Leaderboard";
+import Broadcasts from "./pages/Broadcasts";
+import { LeadToast } from "@/components/lead-toast";
+import { BroadcastToast } from "@/components/broadcast-toast";
 
 const mobileNavItems = [
   { title: "Record Activity", url: "/", icon: Mic },
@@ -155,6 +159,8 @@ function Router() {
       <Route path="/reviews/:id" component={ReviewDetail} />
       <Route path="/settings" component={Settings} />
       <Route path="/admin/events" component={AdminEvents} />
+      <Route path="/leaderboard" component={Leaderboard} />
+      <Route path="/broadcasts" component={Broadcasts} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -246,6 +252,8 @@ function App() {
           <TooltipProvider>
             <AuthGuard>
               <EventProvider>
+                <LeadToast />
+                <BroadcastToast />
                 <AppShell />
               </EventProvider>
             </AuthGuard>

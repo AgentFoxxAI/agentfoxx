@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import {
   Mic, LayoutDashboard, HelpCircle, ClipboardCheck, Settings,
-  Sun, Moon, LogOut, User, Shield, Calendar,
+  Sun, Moon, LogOut, User, Shield, Calendar, Trophy, Megaphone,
 } from "lucide-react";
 import { EventSelector } from "@/components/event-selector";
 import {
@@ -16,8 +16,9 @@ import { Button } from "@/components/ui/button";
 const navItems = [
   { title: "Record Activity", url: "/", icon: Mic },
   { title: "Approval Queue", url: "/reviews", icon: ClipboardCheck },
+  { title: "Leaderboard", url: "/leaderboard", icon: Trophy },
+  { title: "Broadcasts", url: "/broadcasts", icon: Megaphone },
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "How It Works", url: "/how-it-works", icon: HelpCircle },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 

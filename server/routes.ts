@@ -401,5 +401,39 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // ── Broadcasts ─────────────────────────────────────────────────────
+
+  app.get("/api/broadcasts", requireAuth, async (req, res) => {
+    const eventId = req.query.eventId ? Number(req.query.eventId) : undefined;
+    const broadcasts = await storage.getBroadcasts(eventId, req.user!.id);
+    res.json(broadcasts);
+  });
+
+  app.post("/api/broadcasts", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { message, targetType, targetUserId, eventId } = req.body;
+      if (!message) return res.status(400).json({ message: "message is required" });
+
+      const broadcast = await storage.createBroadcast({
+        eventId: eventId || null,
+        fromUserId: req.user!.id,
+        message,
+        targetType: targetType || "all",
+        targetUserId: targetUserId || null,
+      });
+      res.status(201).json(broadcast);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Failed to create broadcast" });
+    }
+  });
+
+  // ── Leaderboard ───────────────────────────────────────────────────
+
+  app.get("/api/leaderboard", requireAuth, async (req, res) => {
+    const eventId = req.query.eventId ? Number(req.query.eventId) : undefined;
+    const leaderboard = await storage.getLeaderboard(eventId);
+    res.json(leaderboard);
+  });
+
   return httpServer;
 }
