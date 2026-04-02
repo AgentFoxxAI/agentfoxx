@@ -7,6 +7,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider, useTheme } from "@/components/theme-provider";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthGuard } from "@/components/auth-guard";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -22,7 +24,9 @@ import {
   HelpCircle,
   ClipboardCheck,
   Settings as SettingsIcon,
+  LogOut,
 } from "lucide-react";
+import { useAuthContext } from "@/contexts/AuthContext";
 import NotFound from "@/pages/not-found";
 
 // Pages
@@ -44,6 +48,7 @@ const mobileNavItems = [
 function MobileDrawerContent({ onClose }: { onClose: () => void }) {
   const [location] = useLocation();
   const { theme, toggleTheme } = useTheme();
+  const { profile, signOut, isAdmin } = useAuthContext();
 
   return (
     <div className="flex flex-col h-full bg-sidebar">
@@ -77,7 +82,6 @@ function MobileDrawerContent({ onClose }: { onClose: () => void }) {
                     ? "bg-primary/10 text-primary font-semibold"
                     : "hover:bg-primary/5 text-foreground"
                 }`}
-                data-testid={`mobile-nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
               >
                 <item.icon className="w-5 h-5 shrink-0" />
                 <span className="text-base">{item.title}</span>
@@ -87,27 +91,38 @@ function MobileDrawerContent({ onClose }: { onClose: () => void }) {
         })}
       </nav>
 
-      {/* Theme toggle */}
-      <div className="px-4 py-4 border-t border-border/50">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={toggleTheme}
-          data-testid="button-theme-toggle-drawer"
-          className="w-full justify-start gap-3 rounded-xl h-12 hover:bg-primary/5 active:bg-primary/10"
-        >
-          {theme === "light" ? (
-            <>
-              <Moon className="w-5 h-5" />
-              <span className="text-base">Dark Mode</span>
-            </>
-          ) : (
-            <>
-              <Sun className="w-5 h-5" />
-              <span className="text-base">Light Mode</span>
-            </>
-          )}
-        </Button>
+      {/* User info + controls */}
+      <div className="px-4 py-4 border-t border-border/50 space-y-3">
+        {profile && (
+          <div className="flex items-center gap-3 px-3">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm">
+              {profile.name.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{profile.name}</p>
+              <p className="text-xs text-muted-foreground">{profile.role === "admin" ? "Admin" : "Rep"}</p>
+            </div>
+          </div>
+        )}
+        <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleTheme}
+            className="flex-1 justify-start gap-3 rounded-xl h-10 hover:bg-primary/5"
+          >
+            {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+            <span className="text-sm">{theme === "light" ? "Dark" : "Light"}</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => { signOut(); onClose(); }}
+            className="rounded-xl h-10 hover:bg-destructive/10 hover:text-destructive"
+          >
+            <LogOut className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -224,10 +239,14 @@ function App() {
   return (
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <AppShell />
-          <Toaster />
-        </TooltipProvider>
+        <AuthProvider>
+          <TooltipProvider>
+            <AuthGuard>
+              <AppShell />
+            </AuthGuard>
+            <Toaster />
+          </TooltipProvider>
+        </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );
