@@ -8,6 +8,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider, useTheme } from "@/components/theme-provider";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { EventProvider } from "@/contexts/EventContext";
 import { AuthGuard } from "@/components/auth-guard";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +37,7 @@ import HowItWorks from "./pages/HowItWorks";
 import ReviewList from "./pages/ReviewList";
 import ReviewDetail from "./pages/ReviewDetail";
 import Settings from "./pages/Settings";
+import AdminEvents from "./pages/AdminEvents";
 
 const mobileNavItems = [
   { title: "Record Activity", url: "/", icon: Mic },
@@ -152,6 +154,7 @@ function Router() {
       <Route path="/reviews" component={ReviewList} />
       <Route path="/reviews/:id" component={ReviewDetail} />
       <Route path="/settings" component={Settings} />
+      <Route path="/admin/events" component={AdminEvents} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -242,7 +245,9 @@ function App() {
         <AuthProvider>
           <TooltipProvider>
             <AuthGuard>
-              <AppShell />
+              <EventProvider>
+                <AppShell />
+              </EventProvider>
             </AuthGuard>
             <Toaster />
           </TooltipProvider>

@@ -1,8 +1,9 @@
 import { Link, useLocation } from "wouter";
 import {
   Mic, LayoutDashboard, HelpCircle, ClipboardCheck, Settings,
-  Sun, Moon, LogOut, User, Shield,
+  Sun, Moon, LogOut, User, Shield, Calendar,
 } from "lucide-react";
+import { EventSelector } from "@/components/event-selector";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarHeader, SidebarFooter, SidebarMenu,
@@ -47,6 +48,11 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="px-4 mt-2">
+        {/* Event Selector */}
+        <div className="mb-3">
+          <EventSelector />
+        </div>
+
         <SidebarGroup>
           <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
             Menu

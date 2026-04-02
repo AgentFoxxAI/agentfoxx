@@ -20,6 +20,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Send, UserPlus, Sparkles, Mic } from "lucide-react";
 import type { Attendee } from "@shared/schema";
+import { useEventContext } from "@/contexts/EventContext";
+import { supabase } from "@/lib/supabase";
 
 const formSchema = z.object({
   contactName: z.string().min(2, "Contact name is required"),
@@ -34,6 +36,7 @@ export default function Home() {
   const [, setLocation] = useLocation();
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const uploadAudio = useUploadAudio();
+  const { activeEvent } = useEventContext();
   const [suggestions, setSuggestions] = useState<Attendee[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [nameQuery, setNameQuery] = useState("");
@@ -49,7 +52,11 @@ export default function Home() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/attendees/search?q=${encodeURIComponent(nameQuery)}`);
+        const { data: { session } } = await supabase.auth.getSession();
+        const eventParam = activeEvent ? `&eventId=${activeEvent.id}` : "";
+        const res = await fetch(`/api/attendees/search?q=${encodeURIComponent(nameQuery)}${eventParam}`, {
+          headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+        });
         if (res.ok) {
           const data = await res.json();
           setSuggestions(data);
@@ -60,7 +67,7 @@ export default function Home() {
       }
     }, 200);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [nameQuery]);
+  }, [nameQuery, activeEvent]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
