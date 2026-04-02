@@ -9,6 +9,8 @@ import path from "path";
 import fs from "fs";
 import { parse } from "csv-parse/sync";
 import { requireAuth, requireAdmin, requireAuthOrApiKey, supabaseAdmin } from "./supabase";
+import { processLead } from "./pipeline";
+import { sendApprovedEmail } from "./email";
 
 // Configure multer for audio file uploads (memory storage)
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -162,39 +164,26 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       await storage.updateReview(id, { status, emailBody, subjectLine });
 
-      // TODO (Phase 3): Replace n8n callback with in-house email sending
-      let webhookWarning = "";
-      if (review.resumeUrl) {
-        try {
-          const resumeUrl = new URL(review.resumeUrl);
-          resumeUrl.searchParams.set("status", status);
-          const callbackUrl = resumeUrl.toString();
-          console.log("[CALLBACK] Calling resume URL:", callbackUrl);
+      let emailResult = { success: true, message: "" };
 
-          const webhookResponse = await fetch(callbackUrl, {
-            method: "GET",
-            redirect: "follow",
-            signal: AbortSignal.timeout(15000),
-          });
-
-          if (!webhookResponse.ok) {
-            webhookWarning = ` (Warning: callback returned ${webhookResponse.status})`;
-          }
-        } catch (webhookErr: any) {
-          webhookWarning = ` (Warning: could not reach callback — ${webhookErr?.message || "unknown error"})`;
-        }
+      if (status === "approved") {
+        emailResult = await sendApprovedEmail(id);
       }
 
-      const baseMessage = status === "approved" ? "Email approved and sent." : "Email draft rejected.";
+      const baseMessage = status === "approved"
+        ? emailResult.message || "Email approved and sent."
+        : "Email draft rejected.";
+
       res.json({
         success: true,
-        message: baseMessage + webhookWarning,
-        callbackStatus: webhookWarning ? "warning" : "ok",
+        message: baseMessage,
+        emailSent: status === "approved" ? emailResult.success : false,
       });
     } catch (e) {
       if (e instanceof z.ZodError) {
         return res.status(400).json({ message: e.errors[0].message });
       }
+      console.error("[Decide] Error:", e);
       res.status(500).json({ message: "Internal server error" });
     }
   });
@@ -224,9 +213,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         console.warn("[AgentFoxx] Could not write audio to disk:", writeErr);
       }
 
+      const parsedEventId = eventId ? Number(eventId) : null;
+
       const activity = await storage.createActivity({
         userId: req.user!.id,
-        eventId: eventId ? Number(eventId) : null,
+        eventId: parsedEventId,
         contactName,
         contactEmail,
         company: company || null,
@@ -235,54 +226,35 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         audioUrl,
       });
 
-      // TODO (Phase 3): Replace n8n webhook with in-house AI pipeline
-      const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL;
-      let webhookStatus = "skipped";
-
-      if (n8nWebhookUrl) {
-        try {
-          const audioBase64 = req.file.buffer.toString("base64");
-          const webhookPayload = {
-            activityId: activity.id,
-            audioUrl,
-            audioBase64,
-            audioMimeType: req.file.mimetype || "audio/webm",
-            audioFileName,
-            contactName,
-            contactEmail,
-            company,
-            notes,
-            userId: req.user!.id,
-            eventId: eventId || null,
-            userSignature: req.user!.signature || "",
-            callbackUrl: `${protocol}://${req.get("host")}/api/activities/${activity.id}`,
-          };
-
-          const response = await fetch(n8nWebhookUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(webhookPayload),
-          });
-
-          webhookStatus = response.ok ? "sent" : `failed: ${response.status}`;
-        } catch (webhookErr: any) {
-          webhookStatus = `error: ${webhookErr.message}`;
-        }
-      } else {
-        webhookStatus = "not_configured";
-      }
-
-      res.status(200).json({
+      // Return immediately — pipeline runs async
+      res.status(202).json({
         success: true,
         activityId: activity.id,
         audioUrl,
-        webhookStatus,
-        message: webhookStatus === "sent"
-          ? "Audio uploaded successfully. Processing..."
-          : webhookStatus === "not_configured"
-            ? "Audio uploaded. AI pipeline not configured yet."
-            : `Audio uploaded but webhook ${webhookStatus}.`,
+        message: "Audio uploaded. AI pipeline processing...",
       });
+
+      // Run pipeline in background (after response sent)
+      const event = parsedEventId ? await storage.getEvent(parsedEventId) : null;
+
+      processLead({
+        activityId: activity.id,
+        audioBuffer: req.file.buffer,
+        audioMimeType: req.file.mimetype || "audio/webm",
+        contactName,
+        contactEmail,
+        company: company || "",
+        notes: notes || "",
+        userId: req.user!.id,
+        eventId: parsedEventId,
+        event: event || null,
+        profile: req.user!,
+      }).catch((err) => {
+        console.error(`[Pipeline] Failed for activity ${activity.id}:`, err);
+        // Update activity status to failed
+        storage.updateActivity(activity.id, { status: "failed" }).catch(() => {});
+      });
+
     } catch (error: any) {
       console.error("Upload error:", error);
       res.status(500).json({ message: error.message });
