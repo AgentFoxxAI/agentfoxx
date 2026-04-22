@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,94 +6,102 @@
 
 @layer base {
   :root {
-    --font-sans: 'Plus Jakarta Sans', sans-serif;
-    --font-display: 'Outfit', sans-serif;
+    /* ── Fonts ────────────────────────────────────────────────── */
+    --font-sans: 'Inter', sans-serif;
+    --font-display: 'Plus Jakarta Sans', sans-serif;
 
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
+    /* ── Linen & Slate palette (light, sleek, motion-driven) ──── */
+    /* Warm off-white background — not stark, not dark */
+    --background: 40 22% 97%;          /* #FAFAF7 linen */
+    --foreground: 220 20% 10%;         /* #141619 near-black */
 
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card: 0 0% 100%;                 /* pure white */
+    --card-foreground: 220 20% 10%;
+    --card-border: 30 15% 90%;         /* barely-there warm border */
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 220 20% 10%;
+    --popover-border: 30 15% 90%;
 
-    --primary: 250 84% 54%;
-    --primary-foreground: 210 40% 98%;
+    /* Telesign magenta, softened — used sparingly */
+    --primary: 336 100% 45%;           /* #E5005A */
+    --primary-foreground: 0 0% 100%;
+    --primary-border: 336 100% 40%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222 47% 11.2%;
+    --secondary: 30 20% 94%;           /* #F1EEE8 warm grey */
+    --secondary-foreground: 220 20% 15%;
+    --secondary-border: 30 15% 88%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 30 18% 95%;               /* #F3F0EB */
+    --muted-foreground: 220 10% 42%;   /* #5C6470 */
+    --muted-border: 30 15% 90%;
 
-    --accent: 250 84% 95%;
-    --accent-foreground: 250 84% 30%;
+    /* Muted sage accent — calm success tone */
+    --accent: 155 18% 55%;             /* #7C9A8E sage */
+    --accent-foreground: 0 0% 100%;
+    --accent-border: 155 18% 48%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 355 72% 52%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-border: 355 72% 44%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 250 84% 54%;
+    --border: 30 15% 90%;              /* linen-tinted */
+    --input: 30 15% 92%;
+    --ring: 336 100% 45%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;                    /* generous 16px roundness */
 
-    --sidebar: 0 0% 100%;
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 250 84% 54%;
+    /* Sidebar — lighter, closer to background with subtle separation */
+    --sidebar: 40 22% 96%;             /* slightly deeper than bg */
+    --sidebar-background: 40 22% 96%;
+    --sidebar-foreground: 220 20% 10%;
+    --sidebar-primary: 336 100% 45%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 40% 96%;
-    --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 214.3 31.8% 91.4%;
-    --sidebar-ring: 250 84% 54%;
-    
-    --chart-1: 250 84% 54%;
-    --chart-2: 190 90% 45%;
-    --chart-3: 320 80% 60%;
-    --chart-4: 40 90% 55%;
-    --chart-5: 140 70% 50%;
+    --sidebar-accent: 40 18% 92%;
+    --sidebar-accent-foreground: 220 20% 10%;
+    --sidebar-border: 30 15% 88%;
+    --sidebar-ring: 336 100% 45%;
+
+    /* Chart palette — muted, harmonious */
+    --chart-1: 336 100% 45%;           /* magenta */
+    --chart-2: 155 18% 55%;            /* sage */
+    --chart-3: 40 60% 55%;             /* honey */
+    --chart-4: 220 20% 35%;            /* slate */
+    --chart-5: 280 20% 60%;            /* mauve */
   }
 
   .dark {
-    --background: 222 47% 7%;
-    --foreground: 210 40% 98%;
-
-    --card: 222 47% 10%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222 47% 10%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 250 84% 65%;
-    --primary-foreground: 222 47% 11%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 250 40% 20%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 250 84% 65%;
-
-    --sidebar: 222 47% 7%;
-    --sidebar-background: 222 47% 7%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    /* Kept for compatibility, but Linen & Slate is primarily a light aesthetic */
+    --background: 220 25% 7%;
+    --foreground: 40 22% 95%;
+    --card: 220 25% 11%;
+    --card-foreground: 40 22% 95%;
+    --card-border: 220 20% 18%;
+    --popover: 220 25% 11%;
+    --popover-foreground: 40 22% 95%;
+    --popover-border: 220 20% 18%;
+    --primary: 336 90% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 25% 15%;
+    --secondary-foreground: 40 22% 95%;
+    --muted: 220 25% 15%;
+    --muted-foreground: 220 10% 65%;
+    --accent: 155 18% 45%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 355 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 20% 18%;
+    --input: 220 20% 18%;
+    --ring: 336 90% 60%;
+    --sidebar: 220 25% 9%;
+    --sidebar-background: 220 25% 9%;
+    --sidebar-foreground: 40 22% 95%;
+    --sidebar-primary: 336 90% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 220 25% 15%;
+    --sidebar-accent-foreground: 40 22% 95%;
+    --sidebar-border: 220 20% 18%;
+    --sidebar-ring: 336 90% 60%;
   }
 }
 
@@ -104,51 +112,100 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-sans);
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    -webkit-font-smoothing: antialiased;
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
-    @apply font-semibold tracking-tight;
+    @apply font-semibold;
+    letter-spacing: -0.02em;
   }
+  h1 { letter-spacing: -0.035em; }
 }
 
 @layer utilities {
+  /* ── Elevated card (replaces glass-card) ───────────────────── */
   .glass-card {
-    @apply bg-card/60 backdrop-blur-xl border border-border/50 shadow-xl shadow-black/5;
-  }
-  .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-br from-primary to-primary/60;
-  }
-  
-  .recording-pulse {
-    animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+    @apply bg-card border border-border/60 rounded-2xl;
+    box-shadow:
+      0 1px 2px rgba(20, 22, 25, 0.04),
+      0 8px 24px -8px rgba(20, 22, 25, 0.06);
   }
 
-  /* Shadcn elevation utilities as requested by rules */
+  .card-elevated {
+    @apply bg-card rounded-2xl;
+    box-shadow:
+      0 1px 2px rgba(20, 22, 25, 0.04),
+      0 12px 32px -12px rgba(20, 22, 25, 0.08);
+  }
+
+  .card-soft {
+    @apply bg-card/80 backdrop-blur-sm border border-border/40 rounded-2xl;
+  }
+
+  /* ── Typography ────────────────────────────────────────────── */
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(var(--foreground)) 0%, hsl(var(--muted-foreground)) 100%);
+  }
+
+  .text-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.035em;
+    font-weight: 700;
+  }
+
+  /* ── Ambient gradient backgrounds ──────────────────────────── */
+  .bg-linen-mesh {
+    background-image:
+      radial-gradient(at 15% 20%, hsl(336 100% 45% / 0.06) 0px, transparent 50%),
+      radial-gradient(at 85% 10%, hsl(155 18% 55% / 0.08) 0px, transparent 50%),
+      radial-gradient(at 50% 90%, hsl(40 60% 55% / 0.05) 0px, transparent 50%);
+  }
+
+  .bg-warm-glow {
+    background-image: radial-gradient(
+      ellipse at top,
+      hsl(336 100% 45% / 0.04) 0%,
+      transparent 60%
+    );
+  }
+
+  /* ── Motion utilities ──────────────────────────────────────── */
   .hover-elevate {
-    @apply transition-all duration-300;
+    transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 0.2s cubic-bezier(0.22, 1, 0.36, 1);
   }
   .hover-elevate:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+    box-shadow:
+      0 2px 4px rgba(20, 22, 25, 0.05),
+      0 16px 40px -16px rgba(20, 22, 25, 0.12);
   }
   .active-elevate-2:active {
-    transform: translateY(1px);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.02);
+    transform: translateY(0);
+    box-shadow:
+      0 1px 2px rgba(20, 22, 25, 0.06),
+      0 4px 8px -4px rgba(20, 22, 25, 0.08);
+  }
+
+  .recording-pulse {
+    animation: pulse-ring 2.2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
   }
 }
 
 @keyframes pulse-ring {
   0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    transform: scale(0.96);
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0.45);
   }
   70% {
     transform: scale(1);
-    box-shadow: 0 0 0 15px rgba(239, 68, 68, 0);
+    box-shadow: 0 0 0 18px hsl(var(--primary) / 0);
   }
   100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    transform: scale(0.96);
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
   }
 }
 
