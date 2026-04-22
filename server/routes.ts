@@ -8,73 +8,121 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { parse } from "csv-parse/sync";
-import crypto from "crypto";
+import { requireAuth, requireAdmin, requireAuthOrApiKey, supabaseAdmin } from "./supabase";
+import { processLead } from "./pipeline";
+import { sendApprovedEmail } from "./email";
 
-// API key auth middleware for write endpoints.
-// Key is read from API_KEY env var. If not set, auth is disabled (dev mode).
-const API_KEY = process.env.API_KEY;
-
-function requireApiKey(req: Request, res: Response, next: NextFunction) {
-  if (!API_KEY) return next(); // no key configured = open (dev)
-  const provided = req.headers["x-api-key"] as string | undefined;
-  if (provided && crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(API_KEY))) {
-    return next();
-  }
-  return res.status(401).json({ message: "Unauthorized: invalid or missing x-api-key header" });
-}
-
-// Configure multer for audio file uploads (memory storage for Autoscale compatibility)
-const uploadDir = path.join(process.cwd(), 'uploads');
+// Configure multer for audio file uploads (memory storage)
+const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
 const uploader = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 25 * 1024 * 1024 }, // 25MB limit (Whisper max)
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = ['audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/x-m4a', 'video/webm'];
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowedTypes = ["audio/webm", "audio/mp4", "audio/mpeg", "audio/ogg", "audio/wav", "audio/x-m4a", "video/webm"];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error(`Unsupported audio format: ${file.mimetype}. Accepted: webm, mp4, mp3, ogg, wav, m4a`));
+      cb(new Error(`Unsupported audio format: ${file.mimetype}`));
     }
-  }
+  },
 });
 
-export async function registerRoutes(
-  httpServer: Server,
-  app: Express
-): Promise<Server> {
+export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
+  app.use("/uploads", express.static(uploadDir));
 
-  app.use('/uploads', express.static(uploadDir));
+  // ── Public routes ─────────────────────────────────────────────────
 
-  // Health/diagnostic endpoint
-  app.get('/api/health', (_req, res) => {
+  app.get("/api/health", (_req, res) => {
     res.json({
-      status: 'ok',
+      status: "ok",
       timestamp: new Date().toISOString(),
-      n8nWebhookConfigured: !!process.env.N8N_WEBHOOK_URL,
-      n8nWebhookUrl: process.env.N8N_WEBHOOK_URL ? `${process.env.N8N_WEBHOOK_URL.substring(0, 30)}...` : 'NOT SET',
+      version: "2.0.0",
       nodeEnv: process.env.NODE_ENV,
-      uploadDir,
     });
   });
 
-  // Reviews
-  app.get(api.reviews.list.path, async (_req, res) => {
-    const reviews = await storage.getReviews();
+  // ── Auth / Profile routes ─────────────────────────────────────────
+
+  app.get("/api/profile", requireAuth, async (req, res) => {
+    res.json(req.user);
+  });
+
+  app.patch("/api/profile", requireAuth, async (req, res) => {
+    const { name, title, phone, signature } = req.body;
+    const updates: Record<string, any> = {};
+    if (name !== undefined) updates.name = name;
+    if (title !== undefined) updates.title = title;
+    if (phone !== undefined) updates.phone = phone;
+    if (signature !== undefined) updates.signature = signature;
+
+    const profile = await storage.updateProfile(req.user!.id, updates);
+    res.json(profile);
+  });
+
+  // ── Admin: Invite user ────────────────────────────────────────────
+
+  app.post("/api/admin/invite", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { email, name, role } = req.body;
+      if (!email || !name) {
+        return res.status(400).json({ message: "email and name are required" });
+      }
+
+      const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+        data: { name, role: role || "rep" },
+      });
+
+      if (error) {
+        return res.status(400).json({ message: error.message });
+      }
+
+      res.status(201).json({
+        success: true,
+        message: `Invite sent to ${email}`,
+        userId: data.user.id,
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to send invite" });
+    }
+  });
+
+  // ── Admin: List users ─────────────────────────────────────────────
+
+  app.get("/api/admin/users", requireAuth, requireAdmin, async (_req, res) => {
+    const users = await storage.getProfiles();
+    res.json(users);
+  });
+
+  app.patch("/api/admin/users/:id", requireAuth, requireAdmin, async (req, res) => {
+    const { role, isActive } = req.body;
+    const updates: Record<string, any> = {};
+    if (role !== undefined) updates.role = role;
+    if (isActive !== undefined) updates.isActive = isActive;
+
+    const profile = await storage.updateProfile(req.params.id, updates);
+    res.json(profile);
+  });
+
+  // ── Reviews ───────────────────────────────────────────────────────
+
+  app.get(api.reviews.list.path, requireAuth, async (req, res) => {
+    const eventId = req.query.eventId ? Number(req.query.eventId) : undefined;
+    const reviews = await storage.getReviews({ eventId, userId: req.user!.role === "admin" ? undefined : req.user!.id });
     res.json(reviews);
   });
 
-  app.get(api.reviews.get.path, async (req, res) => {
+  app.get(api.reviews.get.path, requireAuth, async (req, res) => {
     const id = parseInt(req.params.id);
     const review = await storage.getReview(id);
     if (!review) return res.status(404).json({ message: "Review not found" });
     res.json(review);
   });
 
-  app.post(api.reviews.create.path, requireApiKey, async (req, res) => {
+  app.post(api.reviews.create.path, requireAuthOrApiKey, async (req, res) => {
     try {
       if (req.body.confidence !== undefined) {
         req.body.confidence = String(req.body.confidence);
@@ -87,7 +135,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch(api.reviews.update.path, async (req, res) => {
+  app.patch(api.reviews.update.path, requireAuth, async (req, res) => {
     const id = parseInt(req.params.id);
     try {
       const updates = api.reviews.update.input.parse(req.body);
@@ -98,7 +146,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete('/api/reviews/:id', requireApiKey, async (req, res) => {
+  app.delete("/api/reviews/:id", requireAuth, requireAdmin, async (req, res) => {
     const id = parseInt(req.params.id);
     if (!Number.isFinite(id)) return res.status(400).json({ message: "Invalid review ID" });
     const deleted = await storage.deleteReview(id);
@@ -106,7 +154,7 @@ export async function registerRoutes(
     res.json({ success: true, message: "Review deleted" });
   });
 
-  app.post(api.reviews.decide.path, async (req, res) => {
+  app.post(api.reviews.decide.path, requireAuth, async (req, res) => {
     const id = parseInt(req.params.id);
     try {
       const { status, emailBody, subjectLine } = api.reviews.decide.input.parse(req.body);
@@ -116,226 +164,174 @@ export async function registerRoutes(
 
       await storage.updateReview(id, { status, emailBody, subjectLine });
 
-      let webhookWarning = "";
-      try {
-        const resumeUrl = new URL(review.resumeUrl);
-        resumeUrl.searchParams.set("status", status);
+      let emailResult = { success: true, message: "" };
 
-        const callbackUrl = resumeUrl.toString();
-        console.log("[CALLBACK] Calling n8n resume URL:", callbackUrl);
-        console.log("[CALLBACK] Stored resumeUrl:", review.resumeUrl);
-        console.log("[CALLBACK] Review ID:", id, "Status:", status);
-
-        const webhookResponse = await fetch(callbackUrl, {
-          method: "GET",
-          redirect: "follow",
-          signal: AbortSignal.timeout(15000),
-        });
-
-        const responseText = await webhookResponse.text();
-        console.log("[CALLBACK] n8n response status:", webhookResponse.status);
-        console.log("[CALLBACK] n8n response headers:", JSON.stringify(Object.fromEntries(webhookResponse.headers.entries())));
-        console.log("[CALLBACK] n8n response body:", responseText.substring(0, 500));
-
-        if (!webhookResponse.ok) {
-          console.error("[CALLBACK] n8n resume webhook failed:", webhookResponse.status, webhookResponse.statusText);
-          webhookWarning = ` (Warning: n8n returned ${webhookResponse.status} — the decision was saved but the workflow may not have resumed.)`;
-        } else {
-          console.log("[CALLBACK] n8n resume webhook succeeded!");
-        }
-      } catch (webhookErr: any) {
-        console.error("[CALLBACK] n8n resume webhook error:", webhookErr?.message || webhookErr);
-        console.error("[CALLBACK] Error stack:", webhookErr?.stack);
-        webhookWarning = ` (Warning: could not reach n8n — ${webhookErr?.message || "unknown error"})`;
+      if (status === "approved") {
+        emailResult = await sendApprovedEmail(id);
       }
 
-      const baseMessage = status === "approved" ? "Email approved and sent to Outlook." : "Email draft rejected.";
+      const baseMessage = status === "approved"
+        ? emailResult.message || "Email approved and sent."
+        : "Email draft rejected.";
+
       res.json({
         success: true,
-        message: baseMessage + webhookWarning,
-        callbackUrl: review.resumeUrl,
-        callbackStatus: webhookWarning ? "warning" : "ok",
+        message: baseMessage,
+        emailSent: status === "approved" ? emailResult.success : false,
       });
     } catch (e) {
       if (e instanceof z.ZodError) {
         return res.status(400).json({ message: e.errors[0].message });
       }
+      console.error("[Decide] Error:", e);
       res.status(500).json({ message: "Internal server error" });
     }
   });
 
-  app.post(api.upload.audio.path, uploader.single('audio'), async (req, res) => {
+  // ── Audio Upload ──────────────────────────────────────────────────
+
+  app.post(api.upload.audio.path, requireAuth, uploader.single("audio"), async (req, res) => {
     try {
       if (!req.file) {
-        return res.status(400).json({ message: 'No audio file provided', field: 'audio' });
+        return res.status(400).json({ message: "No audio file provided", field: "audio" });
       }
 
-      const { contactName, contactEmail, company, notes } = req.body;
+      const { contactName, contactEmail, company, notes, eventId } = req.body;
 
       if (!contactName || !contactEmail) {
-        return res.status(400).json({ message: 'contactName and contactEmail are required', field: 'body' });
+        return res.status(400).json({ message: "contactName and contactEmail are required" });
       }
 
-      const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-      const audioFileName = `audio_${Date.now()}${path.extname(req.file.originalname) || '.webm'}`;
-      const audioUrl = `${protocol}://${req.get('host')}/uploads/${audioFileName}`;
+      const protocol = req.headers["x-forwarded-proto"] || req.protocol;
+      const audioFileName = `audio_${Date.now()}${path.extname(req.file.originalname) || ".webm"}`;
+      const audioUrl = `${protocol}://${req.get("host")}/uploads/${audioFileName}`;
 
-      // Use buffer directly from memory storage (Autoscale compatible)
-      const audioBase64 = req.file.buffer.toString('base64');
-      const audioMimeType = req.file.mimetype || 'audio/webm';
-
-      // Also save to disk for local serving (best-effort, may not persist on Autoscale)
+      // Save to disk (best-effort)
       try {
         fs.writeFileSync(path.join(uploadDir, audioFileName), req.file.buffer);
       } catch (writeErr) {
-        console.warn('[AgentFoxx] Could not write audio to disk (expected on Autoscale):', writeErr);
+        console.warn("[AgentFoxx] Could not write audio to disk:", writeErr);
       }
 
+      const parsedEventId = eventId ? Number(eventId) : null;
+
       const activity = await storage.createActivity({
+        userId: req.user!.id,
+        eventId: parsedEventId,
         contactName,
         contactEmail,
         company: company || null,
         notes: notes || null,
-        status: 'processing',
-        audioUrl
+        status: "processing",
+        audioUrl,
       });
 
-      const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL;
-      let webhookStatus = 'skipped';
-
-      if (n8nWebhookUrl) {
-        try {
-          console.log(`[AgentFoxx] Sending webhook to n8n for activity ${activity.id}`);
-          console.log(`[AgentFoxx] Webhook URL: ${n8nWebhookUrl}`);
-          console.log(`[AgentFoxx] Audio base64 length: ${audioBase64.length} chars`);
-
-          const webhookPayload = {
-            activityId: activity.id,
-            audioUrl,
-            audioBase64,
-            audioMimeType,
-            audioFileName,
-            contactName,
-            contactEmail,
-            company,
-            notes,
-            callbackUrl: `${protocol}://${req.get('host')}/api/activities/${activity.id}`
-          };
-
-          const payloadSize = JSON.stringify(webhookPayload).length;
-          console.log(`[AgentFoxx] Webhook payload size: ${(payloadSize / 1024 / 1024).toFixed(2)} MB`);
-
-          const response = await fetch(n8nWebhookUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(webhookPayload)
-          });
-
-          if (!response.ok) {
-            const responseText = await response.text().catch(() => 'no body');
-            console.error(`[AgentFoxx] n8n webhook failed: ${response.status} ${response.statusText} - ${responseText}`);
-            webhookStatus = `failed: ${response.status}`;
-          } else {
-            console.log(`[AgentFoxx] n8n webhook succeeded: ${response.status}`);
-            webhookStatus = 'sent';
-          }
-        } catch (webhookErr: any) {
-          console.error('[AgentFoxx] n8n webhook fetch error:', webhookErr.message || webhookErr);
-          webhookStatus = `error: ${webhookErr.message}`;
-        }
-      } else {
-        console.warn('[AgentFoxx] N8N_WEBHOOK_URL is NOT configured! Webhook skipped. Set this in Replit Secrets.');
-        webhookStatus = 'not_configured';
-      }
-
-      res.status(200).json({
+      // Return immediately — pipeline runs async
+      res.status(202).json({
         success: true,
         activityId: activity.id,
         audioUrl,
-        webhookStatus,
-        message: webhookStatus === 'sent'
-          ? 'Audio uploaded successfully. Processing workflow...'
-          : webhookStatus === 'not_configured'
-            ? 'Audio uploaded but n8n webhook URL is not configured. Set N8N_WEBHOOK_URL in Secrets.'
-            : `Audio uploaded but webhook ${webhookStatus}. Check server logs.`
+        message: "Audio uploaded. AI pipeline processing...",
+      });
+
+      // Run pipeline in background (after response sent)
+      const event = parsedEventId ? await storage.getEvent(parsedEventId) : null;
+
+      processLead({
+        activityId: activity.id,
+        audioBuffer: req.file.buffer,
+        audioMimeType: req.file.mimetype || "audio/webm",
+        contactName,
+        contactEmail,
+        company: company || "",
+        notes: notes || "",
+        userId: req.user!.id,
+        eventId: parsedEventId,
+        event: event || null,
+        profile: req.user!,
+      }).catch((err) => {
+        console.error(`[Pipeline] Failed for activity ${activity.id}:`, err);
+        // Update activity status to failed
+        storage.updateActivity(activity.id, { status: "failed" }).catch(() => {});
       });
 
     } catch (error: any) {
-      console.error('Upload error:', error);
+      console.error("Upload error:", error);
       res.status(500).json({ message: error.message });
     }
   });
 
-  app.get(api.activities.list.path, async (req, res) => {
-    const activities = await storage.getActivities();
+  // ── Activities ────────────────────────────────────────────────────
+
+  app.get(api.activities.list.path, requireAuth, async (req, res) => {
+    const eventId = req.query.eventId ? Number(req.query.eventId) : undefined;
+    const activities = await storage.getActivities({ eventId, userId: req.user!.role === "admin" ? undefined : req.user!.id });
     res.json(activities);
   });
 
-  app.get(api.activities.get.path, async (req, res) => {
+  app.get(api.activities.get.path, requireAuth, async (req, res) => {
     const activity = await storage.getActivity(Number(req.params.id));
-    if (!activity) {
-      return res.status(404).json({ message: 'Activity not found' });
-    }
+    if (!activity) return res.status(404).json({ message: "Activity not found" });
     res.json(activity);
   });
 
-  app.put(api.activities.update.path, async (req, res) => {
+  app.put(api.activities.update.path, requireAuth, async (req, res) => {
     try {
       const input = api.activities.update.input.parse(req.body);
-      const activity = await storage.updateActivity(Number(req.params.id), {
+      await storage.updateActivity(Number(req.params.id), {
         ...input,
-        status: input.status || 'completed'
+        status: input.status || "completed",
       });
-      res.status(200).json({ success: true, message: 'Activity updated' });
+      res.status(200).json({ success: true, message: "Activity updated" });
     } catch (err) {
       if (err instanceof z.ZodError) {
-        return res.status(400).json({
-          message: err.errors[0].message,
-          field: err.errors[0].path.join('.'),
-        });
+        return res.status(400).json({ message: err.errors[0].message });
       }
-      res.status(500).json({ message: 'Internal server error' });
+      res.status(500).json({ message: "Internal server error" });
     }
   });
 
-  app.get(api.activities.stats.path, async (req, res) => {
-    const stats = await storage.getStats();
+  app.get(api.activities.stats.path, requireAuth, async (req, res) => {
+    const eventId = req.query.eventId ? Number(req.query.eventId) : undefined;
+    const stats = await storage.getStats(eventId);
     res.json(stats);
   });
 
-  // Attendee endpoints
+  // ── Attendees ─────────────────────────────────────────────────────
+
   const csvUploader = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
-  app.get('/api/attendees/search', async (req, res) => {
-    const q = String(req.query.q || '');
-    const results = await storage.searchAttendees(q);
+  app.get("/api/attendees/search", requireAuth, async (req, res) => {
+    const q = String(req.query.q || "");
+    const eventId = req.query.eventId ? Number(req.query.eventId) : undefined;
+    const results = await storage.searchAttendees(q, eventId);
     res.json(results);
   });
 
-  app.get('/api/attendees/count', async (_req, res) => {
-    const count = await storage.getAttendeeCount();
+  app.get("/api/attendees/count", requireAuth, async (req, res) => {
+    const eventId = req.query.eventId ? Number(req.query.eventId) : undefined;
+    const count = await storage.getAttendeeCount(eventId);
     res.json({ count });
   });
 
-  app.post('/api/attendees/upload', requireApiKey, csvUploader.single('file'), async (req, res) => {
+  app.post("/api/attendees/upload", requireAuth, requireAdmin, csvUploader.single("file"), async (req, res) => {
     try {
-      if (!req.file) {
-        return res.status(400).json({ message: 'No CSV file provided' });
-      }
+      if (!req.file) return res.status(400).json({ message: "No CSV file provided" });
 
-      const csvContent = req.file.buffer.toString('utf-8');
-      const lines = csvContent.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      const eventId = req.body.eventId ? Number(req.body.eventId) : undefined;
+      const csvContent = req.file.buffer.toString("utf-8");
+      const lines = csvContent.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
 
       let startIndex = 0;
       for (let i = 0; i < lines.length; i++) {
         const lower = lines[i].toLowerCase();
-        if (lower.includes('name') && lower.includes('email')) {
+        if (lower.includes("name") && lower.includes("email")) {
           startIndex = i;
           break;
         }
       }
 
-      const csvToParse = lines.slice(startIndex).join('\n');
+      const csvToParse = lines.slice(startIndex).join("\n");
       const records = parse(csvToParse, {
         columns: true,
         skip_empty_lines: true,
@@ -343,62 +339,101 @@ export async function registerRoutes(
         relax_column_count: true,
       }) as Record<string, string>[];
 
-      const attendeeRows: { fullName: string; email: string; company: string | null }[] = [];
+      const attendeeRows: { fullName: string; email: string; company: string | null; eventId: number | null }[] = [];
       for (const row of records) {
-        const name = row['Name'] || row['name'] || row['Full Name'] || row['full_name'] || row['FullName'] || '';
-        const email = row['Email'] || row['email'] || row['E-mail'] || '';
-        const company = row['Company'] || row['company'] || row['Organization'] || '';
+        const name = row["Name"] || row["name"] || row["Full Name"] || row["full_name"] || row["FullName"] || "";
+        const email = row["Email"] || row["email"] || row["E-mail"] || "";
+        const company = row["Company"] || row["company"] || row["Organization"] || "";
 
         const trimmedName = name.trim();
         const trimmedEmail = email.trim();
         const trimmedCompany = company.trim();
 
-        if (trimmedName && trimmedName !== '-' && trimmedEmail && trimmedEmail !== '-' && trimmedEmail.includes('@')) {
+        if (trimmedName && trimmedName !== "-" && trimmedEmail && trimmedEmail !== "-" && trimmedEmail.includes("@")) {
           attendeeRows.push({
             fullName: trimmedName,
             email: trimmedEmail,
-            company: (trimmedCompany && trimmedCompany !== '-') ? trimmedCompany : null,
+            company: trimmedCompany && trimmedCompany !== "-" ? trimmedCompany : null,
+            eventId: eventId ?? null,
           });
         }
       }
 
       if (attendeeRows.length === 0) {
-        return res.status(400).json({ message: 'No valid attendee rows found in CSV. Ensure it has Name and Email columns.' });
+        return res.status(400).json({ message: "No valid attendee rows found in CSV." });
       }
 
       const inserted = await storage.replaceAttendees(attendeeRows);
-
       res.json({ success: true, count: inserted, message: `Imported ${inserted} attendees` });
     } catch (error: any) {
-      console.error('CSV upload error:', error);
-      res.status(500).json({ message: error.message || 'Failed to process CSV' });
+      console.error("CSV upload error:", error);
+      res.status(500).json({ message: error.message || "Failed to process CSV" });
     }
   });
 
-  app.delete('/api/attendees', requireApiKey, async (_req, res) => {
+  app.delete("/api/attendees", requireAuth, requireAdmin, async (_req, res) => {
     await storage.clearAttendees();
-    res.json({ success: true, message: 'All attendees cleared' });
+    res.json({ success: true, message: "All attendees cleared" });
   });
 
-  // Seed data
-  setTimeout(async () => {
+  // ── Events ────────────────────────────────────────────────────────
+
+  app.get("/api/events", requireAuth, async (_req, res) => {
+    const events = await storage.getEvents();
+    res.json(events);
+  });
+
+  app.post("/api/events", requireAuth, requireAdmin, async (req, res) => {
     try {
-      const activities = await storage.getActivities();
-      if (activities.length === 0) {
-        await storage.createActivity({
-          contactName: "John Doe",
-          contactEmail: "john@example.com",
-          company: "Acme Corp",
-          notes: "Met at the AI summit.",
-          status: "completed",
-          theme: "AI Integration",
-          outlookContactId: "123"
-        });
-      }
-    } catch(e) {
-      console.error("Seed data error:", e);
+      const event = await storage.createEvent(req.body);
+      res.status(201).json(event);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Failed to create event" });
     }
-  }, 2000);
+  });
+
+  app.patch("/api/events/:id", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const event = await storage.updateEvent(Number(req.params.id), req.body);
+      res.json(event);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Failed to update event" });
+    }
+  });
+
+  // ── Broadcasts ─────────────────────────────────────────────────────
+
+  app.get("/api/broadcasts", requireAuth, async (req, res) => {
+    const eventId = req.query.eventId ? Number(req.query.eventId) : undefined;
+    const broadcasts = await storage.getBroadcasts(eventId, req.user!.id);
+    res.json(broadcasts);
+  });
+
+  app.post("/api/broadcasts", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { message, targetType, targetUserId, eventId } = req.body;
+      if (!message) return res.status(400).json({ message: "message is required" });
+
+      const broadcast = await storage.createBroadcast({
+        eventId: eventId || null,
+        fromUserId: req.user!.id,
+        message,
+        targetType: targetType || "all",
+        targetUserId: targetUserId || null,
+      });
+      res.status(201).json(broadcast);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Failed to create broadcast" });
+    }
+  });
+
+  // ── Leaderboard ───────────────────────────────────────────────────
+
+  app.get("/api/leaderboard", requireAuth, async (req, res) => {
+    const eventId = req.query.eventId ? Number(req.query.eventId) : undefined;
+    const leaderboard = await storage.getLeaderboard(eventId);
+    res.json(leaderboard);
+  });
 
   return httpServer;
 }

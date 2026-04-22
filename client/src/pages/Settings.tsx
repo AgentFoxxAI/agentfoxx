@@ -6,14 +6,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Settings as SettingsIcon, Upload, Trash2, Users, FileSpreadsheet } from "lucide-react";
+import { useEventContext } from "@/contexts/EventContext";
+import { supabase } from "@/lib/supabase";
 
 export default function Settings() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const { activeEvent } = useEventContext();
+  const eventId = activeEvent?.id;
 
   const { data: countData, isLoading: countLoading } = useQuery<{ count: number }>({
-    queryKey: ['/api/attendees/count'],
+    queryKey: ['/api/attendees/count', { eventId }],
   });
 
   const clearMutation = useMutation({
