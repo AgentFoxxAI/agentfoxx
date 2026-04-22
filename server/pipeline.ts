@@ -180,6 +180,7 @@ Juan is a Partner Account Director at Telesign covering U.S. and LATAM. Write em
 - Never apologetic, never tentative, never pleading
 
 **Structure (HARD RULES):**
+- ALWAYS start with a traditional greeting: \`Hi [FirstName],\` on its own line, followed by a blank line, then the body.
 - MAX 2 paragraphs for the email body — no exceptions, whether hot lead, nurture, or relationship
 - Short paragraphs with hard returns between them
 - Max 2 sentences per paragraph
@@ -188,7 +189,16 @@ Juan is a Partner Account Director at Telesign covering U.S. and LATAM. Write em
 - No corporate buzzwords. No excessive exclamation marks.
 - No "[Your Name]" placeholder. No closing salutation ("Warm regards", "Best regards", etc.). The system appends the signature automatically.
 
-**Openers (use or riff on these):**
+**Format template:**
+\`\`\`
+Hi [FirstName],
+
+[Paragraph 1 — acknowledgement + context/value]
+
+[Paragraph 2 — next step + polite close]
+\`\`\`
+
+**Opener phrases for the FIRST SENTENCE of paragraph 1 (use or riff on these — never as the greeting itself):**
 - "Good connecting at [Event Name]."
 - "Appreciate the conversation earlier."
 - "Thanks for the chat at the booth."
@@ -236,7 +246,11 @@ You must return structured JSON matching the schema exactly. No prose outside th
 - \`key_insights\`: 1-2 sentences summarizing their pain point or interest
 - \`subject_line\`: short, warm, references the event if relevant (max ~60 chars)
 - \`email_body\`: the full email in Juan's voice — greeting + max 2 paragraphs, no signature, no closing salutation
-- \`reasoning\`: one sentence on why you chose this classification and brief`;
+- \`reasoning\`: one sentence on why you chose this classification and brief
+
+# Response Format — CRITICAL
+
+Your entire response must be a single valid JSON object. No prose before or after. No markdown code fences. Start with \`{\` and end with \`}\`. The response will be parsed with \`JSON.parse()\`.`;
 
 async function analyzeLead(params: {
   transcription: string;
@@ -275,7 +289,7 @@ ${params.transcription}
 
 Analyze and return the structured JSON.`;
 
-  const response = await anthropic.messages.parse({
+  const response = await anthropic.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 2048,
     system: [
@@ -287,52 +301,29 @@ Analyze and return the structured JSON.`;
       },
     ],
     messages: [{ role: "user", content: userMessage }],
-    output_config: {
-      format: {
-        type: "json_schema",
-        schema: {
-          type: "object",
-          properties: {
-            classification: {
-              type: "string",
-              enum: [
-                "qualified_lead",
-                "content_nurture",
-                "partnership_opportunity",
-                "relationship_building",
-                "needs_clarification",
-              ],
-            },
-            confidence: { type: "number" },
-            selected_brief_id: { type: ["integer", "null"] },
-            key_insights: { type: "string" },
-            subject_line: { type: "string" },
-            email_body: { type: "string" },
-            reasoning: { type: "string" },
-          },
-          required: [
-            "classification",
-            "confidence",
-            "selected_brief_id",
-            "key_insights",
-            "subject_line",
-            "email_body",
-            "reasoning",
-          ],
-          additionalProperties: false,
-        },
-        strict: true,
-      } as any,
-    } as any,
   });
 
-  // Parse the output — Anthropic returns it in content[0].text as JSON
+  // Extract the text block and parse JSON manually (Claude 4.6 reliably follows JSON output instructions)
   const textBlock = response.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") {
-    throw new Error("Claude returned no text block");
+    throw new Error(`Claude returned no text block. stop_reason=${response.stop_reason}`);
   }
 
-  const parsed = LeadAnalysisSchema.parse(JSON.parse(textBlock.text));
+  // Strip any accidental markdown code fences defensively
+  let jsonText = textBlock.text.trim();
+  if (jsonText.startsWith("```")) {
+    jsonText = jsonText.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+  }
+
+  let rawParsed: unknown;
+  try {
+    rawParsed = JSON.parse(jsonText);
+  } catch (err) {
+    console.error("[Pipeline] Claude returned non-JSON:", jsonText.slice(0, 500));
+    throw new Error(`Claude returned invalid JSON: ${(err as Error).message}`);
+  }
+
+  const parsed = LeadAnalysisSchema.parse(rawParsed);
 
   // Log cache efficiency for observability
   const usage = response.usage as any;
